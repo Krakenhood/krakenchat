@@ -268,7 +268,7 @@ local HELP = {
     "|cff4fd1c5/kc font <10-18>|r: text size of the feed",
     "|cff4fd1c5/kc side|r: fold the stream list in or out",
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
-    "|cff4fd1c5/kc symbols|r: sidebar as symbols or names (|cff4fd1c5/kc symbols round|r for round ones)",
+    "|cff4fd1c5/kc symbols|r: sidebar as round symbols or names (|cff4fd1c5/kc symbols square|r for square ones)",
     "|cff4fd1c5/kc settings|r: open the settings window",
     "|cff4fd1c5/kc whisperopen|r: whether a whisper unfolds the folded-in chat",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
@@ -303,7 +303,7 @@ function KC:Slash(input)
         self.UI:ToggleChat()
     elseif cmd == "symbols" or cmd == "symbol" or cmd == "text" then
         self.UI:Create()
-        local sidebar = (cmd == "text" and "text") or (rest == "round" and "round") or (settings.sidebar == "text" and "symbols" or "text")
+        local sidebar = (cmd == "text" and "text") or (rest == "square" and "symbols") or (settings.sidebar == "text" and "round" or "text")
         self.UI:SetLook(settings.style, sidebar)
         self:Print(sidebar == "text" and "Sidebar: names." or "Sidebar: symbols (names are in the tooltips).")
     elseif cmd == "settings" or cmd == "options" or cmd == "config" then

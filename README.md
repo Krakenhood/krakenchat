@@ -17,7 +17,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
 - **WoW style**: a gold border around dark stone and the title in the game's fantasy font.
 - **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps and the minimap button, plus the text size and the background's opacity.
-- **Names or symbols**: a tick box in the settings (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. `/kc symbols round` makes them round.
+- **Names or symbols**: a tick box in the settings (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. They're round; square ones are a tick box (or `/kc symbols square`) away.
 - **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a round badge counting unread whispers, and a key binding.
 
 ## Icon
@@ -37,7 +37,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc font <10-18>` | Text size of the feed |
 | `/kc compact` | Fold the chat in, keeping only the stream list |
 | `/kc side` | Fold the stream list in or out |
-| `/kc symbols` | Sidebar as symbols or names (`/kc symbols round` for round symbols) |
+| `/kc symbols` | Sidebar as round symbols or names (`/kc symbols square` for square ones) |
 | `/kc settings` | Open the settings window |
 | `/kc whisperopen` | Whether a whisper unfolds the folded-in chat |
 | `/kc blizzard` | Hide or show the game's own chat window |

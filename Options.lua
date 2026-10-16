@@ -44,15 +44,15 @@ local ENTRIES = {
         label = "Symbols instead of names in the sidebar",
         get = function() return settings().sidebar ~= "text" end,
         set = function(v)
-            settings().sidebar = v and "symbols" or "text"
+            settings().sidebar = v and "round" or "text" -- round by default, square is the option
             refreshAll()
         end,
     },
     {
-        label = "Round symbols",
-        get = function() return settings().sidebar == "round" end,
+        label = "Square symbols instead of round ones",
+        get = function() return settings().sidebar == "symbols" end,
         set = function(v)
-            settings().sidebar = v and "round" or "symbols"
+            settings().sidebar = v and "symbols" or "round"
             refreshAll()
         end,
         enabled = function() return settings().sidebar ~= "text" end,
