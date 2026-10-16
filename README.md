@@ -2,7 +2,7 @@
 
 A chat window for **World of Warcraft: Forever** that doesn't suck. Everything said around you, sorted into streams you can open, fold, hide and search, instead of one long scroll where the whisper you were waiting for drowns between loot lines and trade spam.
 
-- **Conversations**: every whisper partner (and Battle.net friend) gets their own conversation, with a red unread badge; group and guild chat get a calmer dark-gold one, so whispers stand out. Your replies and their AFK auto-replies land in the same place.
+- **Conversations**: every whisper partner (and Battle.net friend) gets their own conversation, with a red unread badge (so does your party or raid); guild chat gets a calmer dark-gold one. Your replies and their AFK auto-replies land in the same place.
 - **Streams in a sidebar**: Conversations, Group & Guild, Nearby, Channels and Game, each a section you can fold shut. Click a stream to see only that; "All messages" shows everything.
 - **Folding**: in "All messages", runs of loot, gold, XP, reputation, system and NPC lines fold into one line ("5 lines: 3 loot & gold, 2 xp & reputation"). Click it to open it.
 - **No repeats**: the same message from the same person in Say, Yell or a channel within 10 minutes is counted (`x3`) instead of shown again. Goodbye, trade spam.
@@ -49,7 +49,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 ## How it works
 
 - **Streams**: each kind of chat is a stream. Whispers get one stream per person, channels one per channel (all zones' "General" share one). Streams appear in the sidebar once something is said in them.
-- **Unread**: whispers get a red badge, group and guild chat a dark-gold one. Say, Yell, Emotes and channels get a quiet count, a small grey number without a box, and don't count while "All messages" is on screen, where you see their lines anyway (a tick box in the settings switches quiet counts off). Game messages never count. A stream is read when it's open and scrolled to the bottom.
+- **Unread**: whispers and your group (party, raid, instance) get a red badge, guild and officer chat a dark-gold one. Say, Yell, Emotes and channels get a quiet count, a small grey number without a box, and don't count while "All messages" is on screen, where you see their lines anyway (a tick box in the settings switches quiet counts off). Game messages never count. A stream is read when it's open and scrolled to the bottom.
 - **Reading back**: scroll up and the feed stays where you are; new messages are counted in a "new messages" bar that brings you back down. Shift + mouse wheel jumps to the end.
 - **How much is kept**: up to 300 messages per conversation, 400 in Party, Raid and Guild, 250 per channel and fewer for game messages. A view shows the latest 300 messages.
 

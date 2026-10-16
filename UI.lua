@@ -115,9 +115,8 @@ end
 
 local function fontSize() return KC.db.settings.fontSize or 12 end
 
--- Unread badges: red for whispers (meant for you), a calm dark gold for group
--- and guild chat, so a whisper stands out; for Say, Yell and channels only a
--- small grey number ("quiet").
+-- Unread badges: red for whispers and your group, a calm dark gold for guild
+-- chat; for Say, Yell and channels only a small grey number ("quiet").
 local function paintBadge(bg, count, kind)
     if kind == "quiet" then
         bg:SetColorTexture(0, 0, 0, 0)
@@ -129,11 +128,16 @@ local function paintBadge(bg, count, kind)
     count:SetTextColor(rgb(kind and Theme.text or Theme.accent))
 end
 
+-- Red ("pressing") for whispers and your own group (party, raid, instance),
+-- dark gold for guild and officer, a grey number for Say, Yell and channels.
+local PRESSING = { party = true, raid = true, instance = true }
+
 local function badgeKind(s)
-    if s.sec == "conv" then return true end
+    if s.sec == "conv" or PRESSING[s.key] then return true end
     local sec = KC:SectionOf(s)
     return (sec and sec.quiet) and "quiet" or false
 end
+UI.BadgeKind = badgeKind
 UI.PaintBadge = paintBadge
 
 -- for the settings window
@@ -976,7 +980,7 @@ function UI:UpdateRail()
         for _, s in pairs(KC.char.streams) do
             local sec = KC:SectionOf(s)
             if sec and sec.personal then unread = unread + s.unread end
-            if s.sec == "conv" and s.unread > 0 then whispers = true end
+            if s.unread > 0 and badgeKind(s) == true then whispers = true end -- something red waiting
         end
     end
     self.railBadge.count:SetText(unread > 99 and "99+" or tostring(unread))
@@ -1398,10 +1402,13 @@ function UI:RenderSidebar()
             h.id = sec.id
             h.label:SetText(sec.label:upper())
             h.chev:SetOpen(not collapsed[sec.id])
-            local unread = 0
-            for _, s in ipairs(list) do unread = unread + s.unread end
+            local unread, pressing = 0, false
+            for _, s in ipairs(list) do
+                unread = unread + s.unread
+                if s.unread > 0 and badgeKind(s) == true then pressing = true end
+            end
             if collapsed[sec.id] and unread > 0 then
-                h.extra:SetText(KC.Colorize(tostring(unread), rgb((sec.id == "conv" and { 1, 0.3, 0.25 }) or (sec.quiet and Theme.dim) or Theme.accent)))
+                h.extra:SetText(KC.Colorize(tostring(unread), rgb((pressing and { 1, 0.3, 0.25 }) or (sec.quiet and Theme.dim) or Theme.accent)))
             elseif sec.id == "conv" then
                 h.extra:SetText(KC.db.settings.sort == "name" and "a-z" or "recent")
             else
