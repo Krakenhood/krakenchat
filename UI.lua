@@ -836,12 +836,13 @@ function UI:CreateContent(f)
         s:SetRotation(math.rad(45))
     end
     self.grip = grip
-    grip:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
-    grip:SetScript("OnMouseUp", function()
-        f:StopMovingOrSizing()
-        UI:SaveGeometry()
-        UI:RenderFeed()
-    end)
+    -- Our own resizing: the game's StartSizing snaps the corner to the cursor,
+    -- which sits a few pixels inside the corner, so every click grew the window.
+    -- Here the size only changes by how far the mouse moves; the top-left
+    -- corner stays put and the window never grows past the screen.
+    grip:SetScript("OnMouseDown", function() UI:BeginResize() end)
+    grip:SetScript("OnMouseUp", function() UI:EndResize() end)
+    grip:SetScript("OnHide", function() UI:EndResize() end)
 
     self:ApplyChat()
     self:ApplyAlpha()
@@ -972,6 +973,41 @@ function UI:ToggleSide()
 end
 
 -- A magnifier in the header; the search box only shows while you search.
+function UI:BeginResize()
+    local f = self.frame
+    local left, top = f:GetLeft(), f:GetTop()
+    if not (left and top) then return end
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    local scale = f:GetEffectiveScale()
+    local cx, cy = GetCursorPosition()
+    local start = { x = cx / scale, y = cy / scale, w = f:GetWidth(), h = f:GetHeight(), left = left, top = top }
+    self.resizing = start
+    self.grip:SetScript("OnUpdate", function()
+        local mx, my = GetCursorPosition()
+        UI:ResizeTo(start.w + (mx / scale - start.x), start.h - (my / scale - start.y))
+    end)
+end
+
+-- Sets the size within the limits: the window's minimum, the screen, and in
+-- the folded-in view a fixed width.
+function UI:ResizeTo(w, h)
+    local f, s = self.frame, self.resizing
+    local folded = KC.db.settings.chatCollapsed
+    local minW = folded and (sideWidth() + 2) or MIN_W
+    local maxW = folded and minW or math.max(minW, (UIParent:GetWidth() or 2000) - (s and s.left or 0))
+    local maxH = math.max(MIN_H, (s and s.top) or (UIParent:GetHeight() or 2000))
+    f:SetSize(math.max(minW, math.min(maxW, w)), math.max(MIN_H, math.min(maxH, h)))
+end
+
+function UI:EndResize()
+    if not self.resizing then return end
+    self.resizing = nil
+    self.grip:SetScript("OnUpdate", nil)
+    self:SaveGeometry()
+    self:RenderFeed()
+end
+
 function UI:CreateSearch(f, anchor, title)
     local glass = CreateFrame("Button", nil, f)
     glass:SetSize(18, 18)

@@ -124,7 +124,7 @@ function StaticPopup_Show(which) POPUPS[#POPUPS + 1] = { which = which }; return
 function geterrorhandler() return function(err) ERRORS[#ERRORS + 1] = err; print("  !! ERROR: " .. tostring(err)) end end
 STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end
-function GetCursorPosition() return 0, 0 end
+function GetCursorPosition() if CURSOR then return CURSOR[1], CURSOR[2] end return 0, 0 end
 function IsShiftKeyDown() return false end
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end

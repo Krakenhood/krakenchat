@@ -477,6 +477,26 @@ check(S("say").unread == 0, "switched off in the settings: no quiet counts")
 KC.db.settings.quietCounts = true
 KC.UI:Select("all")
 
+section("resizing")
+UIParent:SetSize(1920, 1080)
+function KrakenChatFrame:GetLeft() return 40 end
+function KrakenChatFrame:GetTop() return 600 end
+local w0, h0 = KrakenChatFrame:GetWidth(), KrakenChatFrame:GetHeight()
+for _ = 1, 5 do
+    KC.UI.grip._scripts.OnMouseDown(KC.UI.grip)
+    KC.UI.grip._scripts.OnUpdate(KC.UI.grip)
+    KC.UI.grip._scripts.OnMouseUp(KC.UI.grip)
+end
+check(KrakenChatFrame:GetWidth() == w0 and KrakenChatFrame:GetHeight() == h0, "clicking the grip without dragging doesn't change the size")
+KC.UI.grip._scripts.OnMouseDown(KC.UI.grip)
+CURSOR = { 100, -5000 } -- dragged far below the screen
+KC.UI.grip._scripts.OnUpdate(KC.UI.grip)
+KC.UI.grip._scripts.OnMouseUp(KC.UI.grip)
+CURSOR = nil
+check(KrakenChatFrame:GetHeight() <= 600, "the window never grows past the bottom of the screen")
+check(KC.db.settings.window.h == KrakenChatFrame:GetHeight(), "the new size is saved")
+KrakenChatFrame:SetSize(w0, h0)
+
 section("opening a stream opens its section")
 KC.db.settings.collapsed.channels = true
 KC.UI:Select("ch:trade")
