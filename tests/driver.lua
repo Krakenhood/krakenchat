@@ -558,6 +558,23 @@ ChatFrame1EditBox.SetPoint = nil
 KrakenChatFrame.GetBottom = nil
 KrakenChatFrame:SetSize(w0, h0)
 
+section("changes show in the sidebar")
+check(KC.UI.StreamFlag("ch:trade", S("ch:trade")) == nil and KC.UI.StreamFlag("loot", S("loot")) == nil, "defaults: no note")
+KC.UI:StreamMenu(nil, "ch:trade")
+KC.UI.menuEntries[3].func() -- Fold in All messages
+check(KC.UI.StreamFlag("ch:trade", S("ch:trade")) == "folded", "Trade folded by you: 'folded'")
+KC.UI:StreamMenu(nil, "loot")
+KC.UI.menuEntries[3].func() -- Don't fold
+check(KC.UI.StreamFlag("loot", S("loot")) == "unfolded", "Loot unfolded by you: 'unfolded'")
+KC.UI:StreamMenu(nil, "ch:trade")
+KC.UI.menuEntries[2].func() -- Hide in All messages
+check(KC.UI.StreamFlag("ch:trade", S("ch:trade")) == "hidden", "hidden wins: 'hidden'")
+KC.db.settings.muted["ch:trade"] = false
+KC.db.settings.fold["ch:trade"] = false
+KC.db.settings.fold.loot = true
+check(KC.UI.StreamFlag("ch:trade", S("ch:trade")) == nil and KC.UI.StreamFlag("loot", S("loot")) == nil, "back to the defaults: no note")
+KC.db.settings.fold["ch:trade"], KC.db.settings.fold.loot = nil, nil
+
 section("context menu clicks")
 Say("WHISPER", "bye", "Zedd", "Player-1-Z")
 KC.UI:StreamMenu(nil, "w:zedd")

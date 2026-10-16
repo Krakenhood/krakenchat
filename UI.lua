@@ -418,9 +418,12 @@ function factories.stream(parent)
     w.badgeBg:SetAllPoints()
     w.count = Text(w.badge, 9, Theme.text, "CENTER")
     w.count:SetPoint("CENTER", 0, 0)
+    -- "folded", "unfolded" or "hidden": a change you made with right-click
+    w.flag = Text(w, 9, Theme.dim, "RIGHT")
+    w.flag:SetPoint("RIGHT", w.badge, "LEFT", -4, 0)
     w.label = Text(w, 12)
     w.label:SetPoint("LEFT", 20, 0)
-    w.label:SetPoint("RIGHT", w.badge, "LEFT", -4, 0)
+    w.label:SetPoint("RIGHT", w.flag, "LEFT", -4, 0)
     w:SetScript("OnEnter", function(self) self.hl:Show() end)
     w:SetScript("OnLeave", function(self) self.hl:Hide() end)
     w:SetScript("OnClick", factories.streamClick)
@@ -474,7 +477,10 @@ function factories.icon(parent)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:AddLine(self.label or "", 1, 1, 1)
         if self.unread and self.unread > 0 then GameTooltip:AddLine(self.unread .. " unread", 0.55, 0.42, 0.95) end
-        if self.muted then GameTooltip:AddLine("Hidden in All messages", 0.56, 0.6, 0.66) end
+        local flag = streamFlag(self.key, KC:Stream(self.key))
+        if flag == "hidden" then GameTooltip:AddLine("Hidden in All messages", 0.56, 0.6, 0.66) end
+        if flag == "folded" then GameTooltip:AddLine("Folded in All messages", 0.56, 0.6, 0.66) end
+        if flag == "unfolded" then GameTooltip:AddLine("Not folded in All messages", 0.56, 0.6, 0.66) end
         GameTooltip:AddLine("Right-click for options", 0.56, 0.6, 0.66)
         GameTooltip:Show()
     end)
@@ -1346,12 +1352,23 @@ local function sortStreams(sec, list)
     end
 end
 
+-- What you changed about a stream in "All messages", in a word (nil: as by default).
+local function streamFlag(key, s)
+    if not s or key == "all" then return nil end
+    if KC:IsMuted(key) then return "hidden" end
+    local override = KC.db.settings.fold[key]
+    if override == nil or override == (s.fold and true or false) then return nil end
+    return override and "folded" or "unfolded"
+end
+UI.StreamFlag = streamFlag
+
 local function fillStream(w, key, label, s)
     local settings = KC.db.settings
     local selected = settings.view == key
     w.key = key
     w.sel:SetShown(selected)
     w.stripe:SetShown(selected)
+    w.flag:SetText(streamFlag(key, s) or "")
     local muted = key ~= "all" and KC:IsMuted(key)
     local r, g, b = rgb(Theme.text)
     if s and s.class then
@@ -1609,6 +1626,7 @@ function UI:StreamMenu(anchor, key)
         end },
         { text = folds and "Don't fold in All messages" or "Fold in All messages", func = function()
             settings.fold[key] = not folds
+            UI:RenderSidebar()
             UI:RenderFeed()
         end },
     }
