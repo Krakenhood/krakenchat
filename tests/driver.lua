@@ -328,7 +328,7 @@ check(KC.db.settings.sidebar == "symbols" and KC:Look().symbols and not KC:Look(
 check(#POPUPS == popups, "switching the sidebar needs no reload")
 check(KC.db.settings.chatCollapsed == false and KC.UI.scroll:IsShown(), "switching the look shows the chat")
 check(KC.UI.side:GetWidth() < 60, "the symbol column is slim")
-check(KC.UI.child:GetWidth() > 400, "and the chat gets the room")
+check(KC.UI.child:GetWidth() > KrakenChatFrame:GetWidth() - 80, "and the chat gets the room")
 check(KC.UI.viewTitle:IsShown(), "with symbols, the open stream's name is in the header")
 KC.UI:RenderSidebar()
 check(#ERRORS == 0, "symbol sidebar renders")
