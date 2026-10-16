@@ -2,7 +2,7 @@
 ## Title: |cff4fd1c5Kraken|rchat
 ## Notes: A chat window that doesn't suck: conversations, folding of loot and system spam, search, unread badges and history that survives a reload.
 ## Author: Bernhard
-## Version: 0.1.0
+## Version: 1.0.0
 ## IconTexture: Interface\AddOns\KrakenChat\Media\icon
 ## AddonCompartmentFunc: KrakenChat_OnAddonCompartmentClick
 ## SavedVariables: KrakenChatDB
