@@ -623,10 +623,15 @@ KC:ToggleDemo()
 local demoCount = 0
 for _, s in pairs(KC.char.streams) do for _, m in ipairs(s.msgs) do if m.demo then demoCount = demoCount + 1 end end end
 check(demoCount > 10, "demo adds sample messages (" .. demoCount .. ")")
+check(S("w:pip").unread == 2 and S("party").unread == 3 and S("guild").unread == 4 and S("ch:trade").unread == 6, "the demo shows every kind of badge")
+check(KC.db.settings.view == "w:elunara" and not KC.db.settings.chatCollapsed, "and opens on the conversation with Elunara")
+check(S("ch:trade").msgs[#S("ch:trade").msgs].n == 2, "with a repeated Trade post (x2)")
+check(S("party") and find(S("party").msgs, function(m) return m.sys end), "and a group event under Party")
 KC:ToggleDemo()
 demoCount = 0
 for _, s in pairs(KC.char.streams) do for _, m in ipairs(s.msgs) do if m.demo then demoCount = demoCount + 1 end end end
 check(demoCount == 0, "demo removed again")
+check(not S("w:pip") and (not S("guild") or S("guild").unread == 0), "with its badges")
 KC:ClearHistory()
 check(next(KC.char.streams) == "addons" and next(KC.char.streams, "addons") == nil, "history cleared (only the note about it is left)")
 KC:CloseStream("addons")

@@ -333,34 +333,50 @@ end
 -- Demo: sample messages to preview the window, removed again with /kc demo.
 --------------------------------------------------------------------------------
 
+local ITEM = "|cff1eff00|Hitem:15210::::::::20:::::::::|h[Raider Shortsword]|h|r"
 local DEMO = {
     { "CHAT_MSG_SYSTEM", "Thalianne has come online." },
     { "CHAT_MSG_GUILD", "evening all! anyone up for Deadmines?", "Thalianne", "PRIEST" },
     { "CHAT_MSG_GUILD", "me! need 2 more", "Brontor", "WARRIOR" },
     { "CHAT_MSG_GUILD", "and a healer obviously", "Brontor", "WARRIOR" },
-    { "CHAT_MSG_CHANNEL", "WTS |cff1eff00|Hitem:15210::::::::20:::::::::|h[Raider Shortsword]|h|r cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
+    { "CHAT_MSG_CHANNEL", "WTS " .. ITEM .. " cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
     { "CHAT_MSG_CHANNEL", "LF2M Wailing Caverns, need tank + heal", "Mistybrook", "DRUID", "LookingForGroup", 4 },
-    { "CHAT_MSG_CHANNEL", "WTS |cff1eff00|Hitem:15210::::::::20:::::::::|h[Raider Shortsword]|h|r cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
+    { "CHAT_MSG_CHANNEL", "anyone know where to train cooking?", "Nibbles", "HUNTER", "General - Orgrimmar", 1 },
+    { "CHAT_MSG_CHANNEL", "WTS " .. ITEM .. " cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
+    { "CHAT_MSG_CHANNEL", "Enchanter LFW, your mats + tip, /w me", "Shinerva", "MAGE", "Trade (Services) - City", 3 },
     { "CHAT_MSG_LOOT", "You receive loot: |cff9d9d9d|Hitem:2589::::::::20:::::::::|h[Linen Cloth]|h|rx2." },
     { "CHAT_MSG_MONEY", "You loot 1 Silver, 24 Copper" },
     { "CHAT_MSG_COMBAT_XP_GAIN", "Defias Bandit dies, you gain 145 experience." },
     { "CHAT_MSG_LOOT", "You receive loot: |cffffffff|Hitem:4306::::::::20:::::::::|h[Silk Cloth]|h|r." },
-    { "CHAT_MSG_COMBAT_FACTION_CHANGE", "Reputation with Stormwind increased by 25." },
+    { "CHAT_MSG_COMBAT_FACTION_CHANGE", "Reputation with Orgrimmar increased by 25." },
+    { "CHAT_MSG_TRADESKILLS", "Kungfu creates Silk Bandage." },
     { "CHAT_MSG_WHISPER", "hey, still need a healer for DM? I can come", "Elunara", "PRIEST" },
     { "CHAT_MSG_WHISPER_INFORM", "yes please! inviting you now", "Elunara", "PRIEST" },
+    { "CHAT_MSG_SYSTEM", "Elunara joins the party." },
     { "CHAT_MSG_WHISPER", "omw, check out https://forever.example/guide for the route", "Elunara", "PRIEST" },
+    { "CHAT_MSG_SYSTEM", "Loot threshold set to Uncommon." },
     { "CHAT_MSG_PARTY_LEADER", "pull carefully please, I'm still drinking", "Thalianne", "PRIEST" },
     { "CHAT_MSG_PARTY", "ok", "Brontor", "WARRIOR" },
     { "CHAT_MSG_SAY", "Anyone know where the Defias hideout is?", "Pip", "MAGE" },
+    { "CHAT_MSG_YELL", "FOR THE HORDE!", "Grukk", "WARRIOR" },
+    { "CHAT_MSG_WHISPER", "can I join too? I'm a mage", "Pip", "MAGE" },
     { "CHAT_MSG_MONSTER_YELL", "Who dares disturb my work?", "Edwin VanCleef" },
+}
+
+-- Unread counts for the showcase: every kind of badge at once.
+local DEMO_UNREAD = {
+    ["w:pip"] = 2, party = 3, guild = 4, say = 2, yell = 1,
+    ["ch:trade"] = 6, ["ch:general"] = 3, ["ch:lookingforgroup"] = 1,
 }
 
 function KC:ToggleDemo()
     local had = false
     for key, s in pairs(self.char.streams) do
+        local touched = false
         for i = #s.msgs, 1, -1 do
-            if s.msgs[i].demo then table.remove(s.msgs, i); had = true end
+            if s.msgs[i].demo then table.remove(s.msgs, i); had, touched = true, true end
         end
+        if touched then s.unread = 0 end
         if #s.msgs == 0 then self.char.streams[key] = nil end
     end
     if had then
@@ -376,13 +392,22 @@ function KC:ToggleDemo()
         local msg = self:Capture(event, text, who, nil, chan, nil, nil, nil, idx, chan)
         if msg and not msg.demo then
             msg.demo = true
-            msg.t = now - (#DEMO - i) * 30
+            msg.t = now - (#DEMO - i) * 20
         elseif msg then
-            msg.l = now - (#DEMO - i) * 30 -- a repeat of an earlier sample line
+            msg.l = now - (#DEMO - i) * 20 -- a repeat of an earlier sample line
         end
     end
     self.demoing = nil
     self:Fire("STREAMS")
     self:Print("Sample messages added. Type |cff4fd1c5/kc demo|r again to remove them.")
-    self.UI:Show()
+    -- open on the conversation with Elunara (All messages would mark the quiet
+    -- counts read), then set the badges
+    local UI = self.UI
+    UI:Show()
+    if self.db.settings.chatCollapsed then UI:ToggleChat() end
+    UI:Select("w:elunara")
+    for key, n in pairs(DEMO_UNREAD) do
+        if self.char.streams[key] then self.char.streams[key].unread = n end
+    end
+    self:Fire("UNREAD")
 end

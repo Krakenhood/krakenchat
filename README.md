@@ -27,7 +27,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 
 ## Install
 
-Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then type `/kc` in game, or click the minimap button. `/kc demo` fills the window with sample messages so you can see what it looks like.
+Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then type `/kc` in game, or click the minimap button. `/kc demo` fills the window with a showcase: a conversation, group chat with a group event, guild talk, Trade with a repeated post, folded loot and crafting lines, and every kind of unread badge. Good for screenshots; `/kc demo` again removes it.
 
 ## Commands
 
