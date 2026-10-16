@@ -96,10 +96,11 @@ local ENTRIES = {
         end,
     },
     {
-        stepper = true, label = "Background",
-        value = function() return math.floor((settings().bgAlpha or 1) * 100 + 0.5) .. "%" end,
+        -- shown as transparency (0% solid, + more see-through); stored as opacity
+        stepper = true, label = "Background transparency",
+        value = function() return math.floor((1 - (settings().bgAlpha or 1)) * 100 + 0.5) .. "%" end,
         step = function(delta)
-            local a = math.floor((settings().bgAlpha or 1) * 10 + 0.5) + delta
+            local a = math.floor((settings().bgAlpha or 1) * 10 + 0.5) - delta
             settings().bgAlpha = math.max(2, math.min(10, a)) / 10
             KC.UI:ApplyAlpha()
         end,
@@ -141,10 +142,9 @@ local function makeStepper(parent, D, e)
     row.label = D.Text(row, 12)
     row.label:SetPoint("LEFT", 22, 0)
     row.label:SetText(e.label)
-    local function step(delta, x)
+    local function step(delta)
         local b = CreateFrame("Button", nil, row)
         b:SetSize(18, 18)
-        b:SetPoint("LEFT", x, 0)
         D.Solid(b, "BACKGROUND", { 0, 0, 0 }, 0.5):SetAllPoints()
         D.Border(b, Theme.accent, 0.5)
         local t = D.Text(b, 13, Theme.accent, "CENTER")
@@ -156,11 +156,14 @@ local function makeStepper(parent, D, e)
         end)
         return b
     end
-    row.minus = step(-1, 150)
+    -- - value +, lined up on the right edge whatever the label's length
+    row.plus = step(1)
+    row.plus:SetPoint("RIGHT", 0, 0)
     row.value = D.Text(row, 12, nil, "CENTER")
-    row.value:SetPoint("LEFT", 170, 0)
+    row.value:SetPoint("RIGHT", row.plus, "LEFT", -2, 0)
     row.value:SetWidth(40)
-    row.plus = step(1, 212)
+    row.minus = step(-1)
+    row.minus:SetPoint("RIGHT", row.value, "LEFT", -2, 0)
     return row
 end
 
