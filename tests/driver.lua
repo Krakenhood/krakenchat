@@ -544,7 +544,7 @@ check(KrakenChatFrame:GetWidth() <= 1900 and KrakenChatFrame:GetHeight() <= 1020
 check(KC.db.settings.window.w <= 1900 and KC.db.settings.window.h <= 1020, "and the saved size too")
 KC.Options:Create()
 Click(KC.Options.reset)
-check(KrakenChatFrame:GetWidth() == 540 and KrakenChatFrame:GetHeight() == 330 and not KC.db.settings.chatCollapsed, "'Reset window size and position' brings back the default window")
+check(KrakenChatFrame:GetWidth() == 420 and KrakenChatFrame:GetHeight() == 250 and not KC.db.settings.chatCollapsed, "'Reset window size and position' brings back the default window")
 -- the chat input never ends up below the screen
 local placed
 function ChatFrame1EditBox:SetPoint(p) placed = p end

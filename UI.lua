@@ -6,7 +6,7 @@ local call = KC.call
 local UI = { expanded = {}, atBottom = true, newBelow = 0 }
 KC.UI = UI
 
-local DEFAULT_W, DEFAULT_H = 540, 330
+local DEFAULT_W, DEFAULT_H = 420, 250
 local DEFAULT_X, DEFAULT_Y = 40, 44 -- bottom left, with room below for the chat input
 local MIN_W, MIN_H = 360, 140
 local HEADER = 34
