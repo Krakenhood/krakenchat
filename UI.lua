@@ -1638,13 +1638,16 @@ local function inView(s)
 end
 
 KC:Listen("MESSAGE", function(m, s, isRepeat)
-    -- a whisper unfolds the folded-in chat on its conversation
+    -- a whisper brings the chat back, closed or folded in, open on its conversation
     local settings = KC.db.settings
-    if s.sec == "conv" and not m.o and not isRepeat and settings.chatCollapsed and settings.openOnWhisper
-        and UI.frame and UI.frame:IsShown() then
-        UI:Select(s.key)
-        UI:ToggleChat()
-        return
+    if s.sec == "conv" and not m.o and not isRepeat and settings.openOnWhisper and not KC.demoing then
+        local closed = not (UI.frame and UI.frame:IsShown())
+        if closed or settings.chatCollapsed then
+            UI:Show()
+            UI:Select(s.key)
+            if settings.chatCollapsed then UI:ToggleChat() end
+            return
+        end
     end
     if not inView(s) then
         UI:Request("side")

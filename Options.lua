@@ -27,7 +27,7 @@ end
 local ENTRIES = {
     { header = "Behaviour" },
     {
-        label = "Unfold the chat when someone whispers you",
+        label = "Open the chat when someone whispers you",
         get = function() return settings().openOnWhisper end,
         set = function(v) settings().openOnWhisper = v end,
     },
