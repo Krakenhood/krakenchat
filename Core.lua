@@ -181,6 +181,7 @@ local DEFAULTS = {
         sort = "recent",       -- conversations: "recent" or "name"
         view = "all",          -- the stream shown in the feed
         collapsed = {},        -- sidebar sections folded shut
+        sideCollapsed = nil,   -- true: the whole sidebar is folded into a slim rail
         muted = {},            -- stream key -> true: left out of "All messages"
         fold = {},             -- stream key -> true/false: overrides the default folding in "All messages"
         minimap = { angle = 225, hide = false },
@@ -239,6 +240,7 @@ local HELP = {
     "|cff4fd1c5/kc|r: open or close the chat window",
     "|cff4fd1c5/kc time|r: timestamps on or off",
     "|cff4fd1c5/kc font <10-18>|r: text size of the feed",
+    "|cff4fd1c5/kc side|r: fold the stream list in or out",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",
     "|cff4fd1c5/kc resetwindow|r: move the window back to the middle of the screen",
@@ -261,6 +263,9 @@ function KC:Slash(input)
         settings.fontSize = floor(n)
         self:Fire("LAYOUT")
         self:Print("Font size " .. settings.fontSize .. ".")
+    elseif cmd == "side" then
+        self.UI:Create()
+        self.UI:ToggleSide()
     elseif cmd == "minimap" then
         settings.minimap.hide = not settings.minimap.hide
         self:Fire("SETTINGS")

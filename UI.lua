@@ -10,6 +10,7 @@ local DEFAULT_W, DEFAULT_H = 640, 400
 local MIN_W, MIN_H = 420, 220
 local HEADER = 34
 local SIDE_W = 156
+local RAIL_W = 30 -- the sidebar folded in
 local FOOTER = 26
 local PAD = 10
 local TIME_W = 38
@@ -111,6 +112,8 @@ local function Chevron(parent)
 end
 
 local function fontSize() return KC.db.settings.fontSize or 12 end
+
+local function sideWidth() return KC.db.settings.sideCollapsed and RAIL_W or SIDE_W end
 
 --------------------------------------------------------------------------------
 -- Replying: opens the game's chat input set up for the stream.
@@ -456,15 +459,13 @@ function UI:Create()
     local sideBg = Solid(f, "BACKGROUND", Theme.side)
     sideBg:SetPoint("TOPLEFT", 1, -HEADER - 1)
     sideBg:SetPoint("BOTTOMLEFT", 1, 1)
-    sideBg:SetWidth(SIDE_W)
     local sideLine = Solid(f, "ARTWORK", Theme.line)
     sideLine:SetWidth(1)
-    sideLine:SetPoint("TOPLEFT", SIDE_W + 1, -HEADER - 1)
-    sideLine:SetPoint("BOTTOMLEFT", SIDE_W + 1, 1)
+    self.sideBg, self.sideLine = sideBg, sideLine
 
     local side = CreateFrame("ScrollFrame", nil, f)
     side:SetPoint("TOPLEFT", 1, -HEADER - 1)
-    side:SetPoint("BOTTOMLEFT", 1, 1)
+    side:SetPoint("BOTTOMLEFT", 1, 28)
     side:SetWidth(SIDE_W)
     local sideChild = CreateFrame("Frame", nil, side)
     sideChild:SetSize(SIDE_W, 1)
@@ -475,10 +476,10 @@ function UI:Create()
         sf:SetVerticalScroll(math.min(max, math.max(0, sf:GetVerticalScroll() - delta * 40)))
     end)
     self.side, self.sideChild = side, sideChild
+    self:CreateRail(f)
 
     -- feed
     local scroll = CreateFrame("ScrollFrame", nil, f)
-    scroll:SetPoint("TOPLEFT", SIDE_W + PAD + 1, -HEADER - 6)
     scroll:SetPoint("BOTTOMRIGHT", -PAD - 6, FOOTER + 6)
     local child = CreateFrame("Frame", nil, scroll)
     child:SetSize(1, 1)
@@ -516,7 +517,6 @@ function UI:Create()
 
     -- footer: reply
     local footer = CreateFrame("Button", nil, f)
-    footer:SetPoint("BOTTOMLEFT", SIDE_W + PAD + 1, 6)
     footer:SetPoint("BOTTOMRIGHT", -PAD - 12, 6)
     footer:SetHeight(FOOTER - 6)
     footer.bg = Solid(footer, "BACKGROUND", Theme.panel)
@@ -551,6 +551,100 @@ function UI:Create()
         UI:SaveGeometry()
         UI:RenderFeed()
     end)
+
+    self:ApplySide()
+end
+
+--------------------------------------------------------------------------------
+-- Folding the sidebar in: a slim rail with the unread count, so the chat gets
+-- the whole width. The window remembers it.
+--------------------------------------------------------------------------------
+
+-- "<" (fold in) or ">" (fold out), drawn with two strokes.
+local function Arrow(parent)
+    local a = { parent:CreateTexture(nil, "ARTWORK"), parent:CreateTexture(nil, "ARTWORK") }
+    for _, s in ipairs(a) do
+        s:SetSize(6, 1.5)
+        s:SetColorTexture(rgb(Theme.dim))
+    end
+    function a.Point(dir)
+        local sign = dir == "left" and 1 or -1
+        a[1]:ClearAllPoints()
+        a[2]:ClearAllPoints()
+        a[1]:SetPoint("CENTER", parent, "CENTER", 0, 2)
+        a[2]:SetPoint("CENTER", parent, "CENTER", 0, -2)
+        a[1]:SetRotation(math.rad(45 * sign))
+        a[2]:SetRotation(math.rad(-45 * sign))
+    end
+    function a.Color(color)
+        for _, s in ipairs(a) do s:SetColorTexture(rgb(color)) end
+    end
+    return a
+end
+
+function UI:CreateRail(f)
+    local toggle = CreateFrame("Button", nil, f)
+    toggle:SetSize(24, 24)
+    toggle:SetPoint("BOTTOMLEFT", 4, 3)
+    toggle.arrow = Arrow(toggle)
+    toggle:SetScript("OnEnter", function(self)
+        self.arrow.Color(Theme.text)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(KC.db.settings.sideCollapsed and "Show the streams" or "Fold the streams in", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    toggle:SetScript("OnLeave", function(self)
+        self.arrow.Color(Theme.dim)
+        GameTooltip:Hide()
+    end)
+    toggle:SetScript("OnClick", function() UI:ToggleSide() end)
+    self.sideToggle = toggle
+
+    -- while folded in: unread messages, click to fold out
+    local badge = CreateFrame("Button", nil, f)
+    badge:SetSize(22, 16)
+    badge:SetPoint("TOPLEFT", 4, -HEADER - 10)
+    Solid(badge, "ARTWORK", Theme.accent2):SetAllPoints()
+    badge.count = Text(badge, 9, Theme.text, "CENTER")
+    badge.count:SetPoint("CENTER", 0, 0)
+    badge:SetScript("OnClick", function() UI:ToggleSide() end)
+    badge:Hide()
+    self.railBadge = badge
+end
+
+function UI:ApplySide()
+    local collapsed = KC.db.settings.sideCollapsed
+    local w = sideWidth()
+    self.sideBg:SetWidth(w)
+    self.sideLine:ClearAllPoints()
+    self.sideLine:SetPoint("TOPLEFT", w + 1, -HEADER - 1)
+    self.sideLine:SetPoint("BOTTOMLEFT", w + 1, 1)
+    self.side:SetShown(not collapsed)
+    self.scroll:SetPoint("TOPLEFT", w + PAD + 1, -HEADER - 6)
+    self.footer:SetPoint("BOTTOMLEFT", w + PAD + 1, 6)
+    self.sideToggle.arrow.Point(collapsed and "right" or "left")
+    self:UpdateRail()
+end
+
+function UI:UpdateRail()
+    if not self.railBadge then return end
+    local unread = 0
+    if KC.db.settings.sideCollapsed then
+        for _, s in pairs(KC.char.streams) do
+            local sec = KC:SectionOf(s)
+            if sec and sec.personal then unread = unread + s.unread end
+        end
+    end
+    self.railBadge.count:SetText(unread > 99 and "99+" or tostring(unread))
+    self.railBadge:SetShown(unread > 0)
+end
+
+function UI:ToggleSide()
+    local settings = KC.db.settings
+    settings.sideCollapsed = not settings.sideCollapsed or nil
+    self:ApplySide()
+    self:RenderSidebar()
+    self:RenderFeed()
 end
 
 function UI:CreateSearch(f, close)
@@ -728,7 +822,7 @@ function UI:RenderFeed()
     release({ "msg", "fold", "day" })
     local entries = Feed:Collect(view, query)
     local items = Feed:Build(entries, all and not query, self.expanded)
-    local width = math.max(100, self.frame:GetWidth() - SIDE_W - PAD * 2 - 8)
+    local width = math.max(100, self.frame:GetWidth() - sideWidth() - PAD * 2 - 8)
     self.child:SetWidth(width)
 
     local y, layout = 0, {}
@@ -845,6 +939,7 @@ function UI:RenderSidebar()
         self.dirty = true
         return
     end
+    self:UpdateRail()
     release({ "section", "stream" })
     local child = self.sideChild
     local y = 6

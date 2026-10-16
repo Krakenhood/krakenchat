@@ -226,6 +226,26 @@ check(closeEntry.text == "Close conversation", "conversations can be closed")
 KC.UI:MessageMenu(nil, { m = S("guild").msgs[2], s = S("guild") })
 check(KC.UI.menuEntries[2].text == "Copy text" and KC.UI.menuEntries[3].text == "Whisper Brontor", "message menu: copy and whisper")
 
+section("folding the sidebar in")
+KC.UI:Select("all")
+Say("WHISPER", "psst", "Elunara-Forever", "Player-1-E")
+local wideBefore = KC.UI.child:GetWidth()
+Click(KC.UI.sideToggle)
+check(KC.db.settings.sideCollapsed == true, "the sidebar folds in and it is remembered")
+check(not KC.UI.side:IsShown(), "stream list hidden while folded in")
+check(KC.UI.child:GetWidth() > wideBefore, "the chat gets the width")
+local expected = 0
+for _, st in pairs(KC.char.streams) do if st.sec == "conv" or st.sec == "group" then expected = expected + st.unread end end
+check(expected > 0 and KC.UI.railBadge:IsShown() and KC.UI.railBadge.count:GetText() == tostring(expected), "unread messages show on the rail (" .. expected .. ")")
+Click(KC.UI.railBadge)
+check(not KC.db.settings.sideCollapsed and KC.UI.side:IsShown(), "clicking the rail folds the sidebar out again")
+check(not KC.UI.railBadge:IsShown(), "no rail badge while the sidebar is out")
+SlashCmdList.KRAKENCHAT("side")
+check(KC.db.settings.sideCollapsed == true, "/kc side folds it in")
+SlashCmdList.KRAKENCHAT("side")
+check(not KC.db.settings.sideCollapsed, "and out")
+KC:MarkRead("w:elunara")
+
 section("caps")
 for i = 1, 100 do Say("YELL", "loud " .. i, "Pip") end
 for i = 1, 300 do Say("SAY", "line " .. i, "Pip") end
