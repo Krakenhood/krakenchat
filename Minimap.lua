@@ -20,6 +20,7 @@ local function updateState()
     button:SetShown(not KC.db.settings.minimap.hide)
     local unread = KC:UnreadConversations()
     button.pip:SetShown(unread > 0)
+    button.pip.count:SetText(unread > 9 and "9+" or tostring(unread))
 end
 
 local function showTooltip(self)
@@ -36,7 +37,7 @@ local function showTooltip(self)
         GameTooltip:AddLine("No unread whispers.", 0.7, 0.7, 0.7)
     end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Click: open or close   Drag: move", 0.5, 0.5, 0.5)
+    GameTooltip:AddLine("Click: open or close   Right-click: settings   Drag: move", 0.5, 0.5, 0.5)
     GameTooltip:Show()
 end
 
@@ -57,20 +58,45 @@ local function createButton()
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
     icon:SetPoint("TOPLEFT", 7, -6)
-    icon:SetTexture("Interface\\Icons\\INV_Letter_15")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    icon:SetTexture(KC.IconFileBare)
+    -- round like the other minimap buttons
+    local mask = button:CreateMaskTexture()
+    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(icon)
+    icon:AddMaskTexture(mask)
 
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetSize(53, 53)
     border:SetPoint("TOPLEFT")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 
-    button.pip = button:CreateTexture(nil, "OVERLAY", nil, 2)
-    button.pip:SetSize(7, 7)
-    button.pip:SetPoint("BOTTOMRIGHT", -6, 6)
-    button.pip:SetColorTexture(Theme.accent2[1], Theme.accent2[2], Theme.accent2[3], 1)
+    -- unread whispers: a round red badge with the count, like the sidebar's
+    local pip = CreateFrame("Frame", nil, button)
+    pip:SetSize(15, 15)
+    pip:SetPoint("BOTTOMRIGHT", -2, 3)
+    pip:SetFrameLevel(button:GetFrameLevel() + 2)
+    pip.ring = pip:CreateTexture(nil, "ARTWORK", nil, 1)
+    pip.ring:SetAllPoints()
+    pip.ring:SetColorTexture(Theme.accent[1], Theme.accent[2], Theme.accent[3], 1)
+    pip.dot = pip:CreateTexture(nil, "ARTWORK", nil, 2)
+    pip.dot:SetPoint("TOPLEFT", 1.5, -1.5)
+    pip.dot:SetPoint("BOTTOMRIGHT", -1.5, 1.5)
+    pip.dot:SetColorTexture(Theme.accent2[1], Theme.accent2[2], Theme.accent2[3], 1)
+    for _, t in ipairs({ pip.ring, pip.dot }) do
+        local m = pip:CreateMaskTexture()
+        m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(t)
+        t:AddMaskTexture(m)
+    end
+    pip.count = pip:CreateFontString(nil, "OVERLAY")
+    pip.count:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 9, "")
+    pip.count:SetPoint("CENTER", 0, 0)
+    pip.count:SetTextColor(1, 1, 1)
+    button.pip = pip
 
-    button:SetScript("OnClick", function() KC.UI:Toggle() end)
+    button:SetScript("OnClick", function(_, which)
+        if which == "RightButton" then KC.Options:Toggle() else KC.UI:Toggle() end
+    end)
     button:SetScript("OnDragStart", function(self)
         GameTooltip:Hide()
         self:SetScript("OnUpdate", function()

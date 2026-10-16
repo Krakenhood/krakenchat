@@ -51,10 +51,24 @@ end
 function KC:IsViewing(key)
     local UI = self.UI
     if not (UI and UI.frame and UI.frame:IsShown() and UI.atBottom ~= false) then return false end
+    if self.db.settings.chatCollapsed then return false end
     return self.db.settings.view == key
 end
 
 function KC:MarkRead(key)
+    if key == "all" then
+        -- "All messages" on screen: the quiet streams' lines are seen there
+        local changed = false
+        for k, s in pairs(self.char.streams) do
+            local sec = self:SectionOf(s)
+            if sec and sec.quiet and s.unread > 0 and not self:IsMuted(k) then
+                s.unread = 0
+                changed = true
+            end
+        end
+        if changed then self:Fire("UNREAD") end
+        return
+    end
     local s = self.char.streams[key]
     if s and s.unread > 0 then
         s.unread = 0
@@ -119,6 +133,49 @@ local function channelName(base, display)
 end
 
 --------------------------------------------------------------------------------
+-- Group system lines
+--------------------------------------------------------------------------------
+
+-- "%s joins the party." -> "^(.-) joins the party%.$"
+local function toPattern(fmt)
+    local p = fmt:gsub("%%%d?%$?s", "\001"):gsub("%%%d?%$?d", "\002")
+    p = p:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%0")
+    return "^" .. p:gsub("\001", "(.-)"):gsub("\002", "(%%d+)") .. "$"
+end
+
+local groupPatterns
+local function isGroupLine(text)
+    if not groupPatterns then
+        groupPatterns = {}
+        for _, name in ipairs(KC.GroupMessages) do
+            local fmt = _G[name]
+            if type(fmt) == "string" and fmt ~= "" then groupPatterns[#groupPatterns + 1] = toPattern(fmt) end
+        end
+    end
+    text = KC.Plain(text)
+    for _, p in ipairs(groupPatterns) do
+        if text:find(p) then return true end
+    end
+    return false
+end
+KC.IsGroupLine = isGroupLine
+
+-- The stream of the group you're in (or were last in: "You leave the group").
+local function groupStream()
+    local key
+    if call(IsInRaid) then
+        key = "raid"
+    elseif LE_PARTY_CATEGORY_INSTANCE and call(IsInGroup, LE_PARTY_CATEGORY_INSTANCE)
+        and not call(IsInGroup, LE_PARTY_CATEGORY_HOME) then
+        key = "instance"
+    elseif call(IsInGroup) then
+        key = "party"
+    end
+    if key then KC.lastGroup = key end
+    return key or KC.lastGroup or "party"
+end
+
+--------------------------------------------------------------------------------
 -- Capturing
 --------------------------------------------------------------------------------
 
@@ -151,7 +208,10 @@ function KC:Add(s, msg)
     s.last = msg.t
 
     local section = self:SectionOf(s)
-    if section and section.personal and not msg.o and not self:IsViewing(s.key) and not self.demoing then
+    local counts = section and (section.personal
+        or (section.quiet and self.db.settings.quietCounts
+            and not (self:IsViewing("all") and not self:IsMuted(s.key)) or false))
+    if counts and not msg.o and not self:IsViewing(s.key) and not self.demoing then
         s.unread = s.unread + 1
         self:Fire("UNREAD")
     end
@@ -166,14 +226,14 @@ function KC:SectionOf(s)
 end
 
 -- Turns one CHAT_MSG_ event into a message in its stream.
-function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, chanBase, _, _, guid, bnID)
+function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, chanBase, _, lineID, guid, bnID)
     local ctype = event:sub(10) -- "CHAT_MSG_PARTY" -> "PARTY"
     local def = KC.Events[ctype]
     if not def or not self.char or not self.me then return end
 
     local secret = KC.IsSecret(text)
-    sender, channel, target, chanIndex, chanBase, guid, bnID =
-        clean(sender), clean(channel), clean(target), clean(chanIndex), clean(chanBase), clean(guid), clean(bnID)
+    sender, channel, target, chanIndex, chanBase, guid, bnID, lineID =
+        clean(sender), clean(channel), clean(target), clean(chanIndex), clean(chanBase), clean(guid), clean(bnID), clean(lineID)
     if not secret and type(text) ~= "string" then return end
     if type(sender) ~= "string" then sender = nil end
     if sender == "" then sender = nil end
@@ -182,6 +242,11 @@ function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, ch
     if secret then msg.secret = true end
     msg.x = text
     if def.leader then msg.ld = true end
+    -- for the game's own player links: the full name and the line (Report needs it)
+    if sender and def.stream ~= "bnet" and def.stream ~= "npc" and def.form ~= "plain" then
+        msg.p = sender
+        if type(lineID) == "number" then msg.li = lineID end
+    end
     if def.warning then msg.w = true end
     if def.subst and not secret and sender and text:find("%s", 1, true) then
         msg.x = text:gsub("%%s", (sender:gsub("%%", "%%%%")), 1)
@@ -216,6 +281,10 @@ function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, ch
         msg.a = sender and KC.ShortName(sender)
         msg.c = classOf(guid, sender)
         msg.o = isMe(sender) or nil
+    elseif ctype == "SYSTEM" and not secret and isGroupLine(text) then
+        -- about your group: shown in Party / Raid / Instance (and from there in All messages)
+        s = self:EnsureStream(groupStream())
+        msg.sys = true
     else
         s = self:EnsureStream(def.stream)
         msg.a = sender and KC.ShortName(sender)
@@ -264,34 +333,50 @@ end
 -- Demo: sample messages to preview the window, removed again with /kc demo.
 --------------------------------------------------------------------------------
 
+local ITEM = "|cff1eff00|Hitem:15210::::::::20:::::::::|h[Raider Shortsword]|h|r"
 local DEMO = {
     { "CHAT_MSG_SYSTEM", "Thalianne has come online." },
     { "CHAT_MSG_GUILD", "evening all! anyone up for Deadmines?", "Thalianne", "PRIEST" },
     { "CHAT_MSG_GUILD", "me! need 2 more", "Brontor", "WARRIOR" },
     { "CHAT_MSG_GUILD", "and a healer obviously", "Brontor", "WARRIOR" },
-    { "CHAT_MSG_CHANNEL", "WTS |cff1eff00|Hitem:15210::::::::20:::::::::|h[Raider Shortsword]|h|r cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
+    { "CHAT_MSG_CHANNEL", "WTS " .. ITEM .. " cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
     { "CHAT_MSG_CHANNEL", "LF2M Wailing Caverns, need tank + heal", "Mistybrook", "DRUID", "LookingForGroup", 4 },
-    { "CHAT_MSG_CHANNEL", "WTS |cff1eff00|Hitem:15210::::::::20:::::::::|h[Raider Shortsword]|h|r cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
+    { "CHAT_MSG_CHANNEL", "anyone know where to train cooking?", "Nibbles", "HUNTER", "General - Orgrimmar", 1 },
+    { "CHAT_MSG_CHANNEL", "WTS " .. ITEM .. " cheap, whisper me", "Goldfinger", "ROGUE", "Trade - City", 2 },
+    { "CHAT_MSG_CHANNEL", "Enchanter LFW, your mats + tip, /w me", "Shinerva", "MAGE", "Trade (Services) - City", 3 },
     { "CHAT_MSG_LOOT", "You receive loot: |cff9d9d9d|Hitem:2589::::::::20:::::::::|h[Linen Cloth]|h|rx2." },
     { "CHAT_MSG_MONEY", "You loot 1 Silver, 24 Copper" },
     { "CHAT_MSG_COMBAT_XP_GAIN", "Defias Bandit dies, you gain 145 experience." },
     { "CHAT_MSG_LOOT", "You receive loot: |cffffffff|Hitem:4306::::::::20:::::::::|h[Silk Cloth]|h|r." },
-    { "CHAT_MSG_COMBAT_FACTION_CHANGE", "Reputation with Stormwind increased by 25." },
+    { "CHAT_MSG_COMBAT_FACTION_CHANGE", "Reputation with Orgrimmar increased by 25." },
+    { "CHAT_MSG_TRADESKILLS", "Kungfu creates Silk Bandage." },
     { "CHAT_MSG_WHISPER", "hey, still need a healer for DM? I can come", "Elunara", "PRIEST" },
     { "CHAT_MSG_WHISPER_INFORM", "yes please! inviting you now", "Elunara", "PRIEST" },
+    { "CHAT_MSG_SYSTEM", "Elunara joins the party." },
     { "CHAT_MSG_WHISPER", "omw, check out https://forever.example/guide for the route", "Elunara", "PRIEST" },
+    { "CHAT_MSG_SYSTEM", "Loot threshold set to Uncommon." },
     { "CHAT_MSG_PARTY_LEADER", "pull carefully please, I'm still drinking", "Thalianne", "PRIEST" },
     { "CHAT_MSG_PARTY", "ok", "Brontor", "WARRIOR" },
     { "CHAT_MSG_SAY", "Anyone know where the Defias hideout is?", "Pip", "MAGE" },
+    { "CHAT_MSG_YELL", "FOR THE HORDE!", "Grukk", "WARRIOR" },
+    { "CHAT_MSG_WHISPER", "can I join too? I'm a mage", "Pip", "MAGE" },
     { "CHAT_MSG_MONSTER_YELL", "Who dares disturb my work?", "Edwin VanCleef" },
+}
+
+-- Unread counts for the showcase: every kind of badge at once.
+local DEMO_UNREAD = {
+    ["w:pip"] = 2, party = 3, guild = 4, say = 2, yell = 1,
+    ["ch:trade"] = 6, ["ch:general"] = 3, ["ch:lookingforgroup"] = 1,
 }
 
 function KC:ToggleDemo()
     local had = false
     for key, s in pairs(self.char.streams) do
+        local touched = false
         for i = #s.msgs, 1, -1 do
-            if s.msgs[i].demo then table.remove(s.msgs, i); had = true end
+            if s.msgs[i].demo then table.remove(s.msgs, i); had, touched = true, true end
         end
+        if touched then s.unread = 0 end
         if #s.msgs == 0 then self.char.streams[key] = nil end
     end
     if had then
@@ -307,13 +392,22 @@ function KC:ToggleDemo()
         local msg = self:Capture(event, text, who, nil, chan, nil, nil, nil, idx, chan)
         if msg and not msg.demo then
             msg.demo = true
-            msg.t = now - (#DEMO - i) * 30
+            msg.t = now - (#DEMO - i) * 20
         elseif msg then
-            msg.l = now - (#DEMO - i) * 30 -- a repeat of an earlier sample line
+            msg.l = now - (#DEMO - i) * 20 -- a repeat of an earlier sample line
         end
     end
     self.demoing = nil
     self:Fire("STREAMS")
     self:Print("Sample messages added. Type |cff4fd1c5/kc demo|r again to remove them.")
-    self.UI:Show()
+    -- open on the conversation with Elunara (All messages would mark the quiet
+    -- counts read), then set the badges
+    local UI = self.UI
+    UI:Show()
+    if self.db.settings.chatCollapsed then UI:ToggleChat() end
+    UI:Select("w:elunara")
+    for key, n in pairs(DEMO_UNREAD) do
+        if self.char.streams[key] then self.char.streams[key].unread = n end
+    end
+    self:Fire("UNREAD")
 end

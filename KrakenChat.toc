@@ -3,7 +3,7 @@
 ## Notes: A chat window that doesn't suck: conversations, folding of loot and system spam, search, unread badges and history that survives a reload.
 ## Author: Bernhard
 ## Version: 0.1.0
-## IconTexture: Interface\Icons\INV_Letter_15
+## IconTexture: Interface\AddOns\KrakenChat\Media\icon
 ## AddonCompartmentFunc: KrakenChat_OnAddonCompartmentClick
 ## SavedVariables: KrakenChatDB
 ## SavedVariablesPerCharacter: KrakenChatCharDB
@@ -14,3 +14,5 @@ Capture.lua
 Feed.lua
 UI.lua
 Minimap.lua
+Blizzard.lua
+Options.lua

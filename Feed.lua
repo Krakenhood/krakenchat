@@ -49,13 +49,24 @@ function Feed:Collect(view, query)
     elseif KC.char.streams[view] then
         streams[1] = KC.char.streams[view]
     end
+    -- System also lists the group lines that live in Party, Raid and Instance
+    local sysOnly = {}
+    if view == "system" then
+        for _, key in ipairs({ "party", "raid", "instance" }) do
+            local s = KC.char.streams[key]
+            if s then
+                streams[#streams + 1] = s
+                sysOnly[s] = true
+            end
+        end
+    end
 
     local out = {}
     for _, s in ipairs(streams) do
         local n, list = 0, s.msgs
         for i = #list, 1, -1 do
             local m = list[i]
-            if matches(m, q) then
+            if matches(m, q) and (not sysOnly[s] or m.sys) then
                 out[#out + 1] = { m = m, s = s }
                 n = n + 1
                 if n >= self.CAP then break end
@@ -193,12 +204,20 @@ function Feed.LinkURLs(text)
     return table.concat(out)
 end
 
--- A clickable name. `target` is what a click replies to: "name:<character>",
--- or "stream:<key>" in conversations (Battle.net friends have no character name).
-local function nameLink(target, class, label)
+-- A clickable name. `link` is the game's own player link where there is a
+-- character ("player:Name-Realm:lineID:TYPE"): left-click whispers, right-click
+-- opens the game's player menu (whisper, invite, add friend, ignore, report).
+-- Battle.net friends get our own link, which replies in their conversation.
+local function nameLink(link, class, label)
     local r, g, b = KC.ClassColor(class)
     label = KC.Colorize(label, r or 0.93, g or 0.94, b or 0.96)
-    return ("|Haddon:KrakenChat:%s|h%s|h"):format(target, label)
+    if not link then return label end
+    return ("|H%s|h%s|h"):format(link, label)
+end
+
+local function playerLink(name, m)
+    if not name then return nil end
+    return ("player:%s:%d:%s%s"):format(name, m.li or 0, m.k or "SAY", m.ci and (":" .. m.ci) or "")
 end
 Feed.NameLink = nameLink
 
@@ -215,21 +234,30 @@ function Feed.Color(m)
 end
 
 -- The text of one line (without the time). `all`: shown in "All messages", so
--- the stream's tag goes in front.
-function Feed:Line(m, s, all)
+-- the stream's tag goes in front. `cont`: the line continues the block above,
+-- so the tag and the name are left out.
+function Feed:Line(m, s, all, cont)
     local r, g, b = Feed.Color(m)
     local color = "|cff" .. hex(r, g, b)
+    local text = Feed.LinkURLs(m.x)
+    if (m.n or 1) > 1 then text = text .. ("  |cff8a8f98x%d|r"):format(m.n) end
+    if cont then return color .. text .. "|r" end
+
     local parts = {}
     if all and s.tag and not (s.fold and m.f == "plain") then
         parts[#parts + 1] = color .. "[" .. s.tag .. "]|r "
     end
     if m.w then parts[#parts + 1] = "|cffff4646[Warning]|r " end
 
-    local text = Feed.LinkURLs(m.x)
-    if (m.n or 1) > 1 then text = text .. ("  |cff8a8f98x%d|r"):format(m.n) end
-
     local who = m.a
-    local target = s.sec == "conv" and ("stream:" .. s.key) or ("name:" .. tostring(who))
+    local target
+    if s.bn then
+        target = "addon:KrakenChat:stream:" .. s.key
+    elseif s.sec == "conv" then
+        target = playerLink(s.who or m.p, m) -- whispers: always the partner, also on my own lines
+    else
+        target = playerLink(m.p, m)
+    end
     if m.f == "plain" or not who then
         parts[#parts + 1] = color .. text .. "|r"
     elseif m.f == "emote" then

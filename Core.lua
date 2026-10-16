@@ -180,8 +180,15 @@ local DEFAULTS = {
         fontSize = 12,
         sort = "recent",       -- conversations: "recent" or "name"
         view = "all",          -- the stream shown in the feed
-        collapsed = {},        -- sidebar sections folded shut
-        muted = {},            -- stream key -> true: left out of "All messages"
+        collapsed = { near = true, channels = true, game = true }, -- sidebar sections folded shut: the busy ones
+        sideCollapsed = nil,   -- true: the whole sidebar is folded into a slim rail
+        chatCollapsed = true,  -- the chat is folded in, the window shows only the stream list
+        hideBlizzard = true,   -- the game's own chat windows are hidden
+        style = "wow",         -- the WoW style; the teal "flat" look is parked
+        sidebar = "text",      -- "text", "symbols" or "round"
+        openOnWhisper = true,  -- a whisper unfolds the chat while it's folded in
+        quietCounts = true,    -- small grey unread counts for Say, Yell, Emotes and channels
+        muted = {},            -- stream key -> true: left out of "All messages" (false: shown)
         fold = {},             -- stream key -> true/false: overrides the default folding in "All messages"
         minimap = { angle = 225, hide = false },
         window = {},
@@ -193,7 +200,15 @@ local CHAR_DEFAULTS = { streams = {}, nextId = 1 }
 function KC:LoadDB()
     if type(KrakenChatDB) ~= "table" then KrakenChatDB = {} end
     if type(KrakenChatCharDB) ~= "table" then KrakenChatCharDB = {} end
+    -- 0.1 kept a theme number; it becomes a style and a sidebar
+    local old = type(KrakenChatDB.settings) == "table" and KrakenChatDB.settings
+    if old and old.theme and not old.style then
+        local t = KC.Themes[old.theme] or KC.Themes[1]
+        old.style, old.sidebar, old.theme = t.style, t.sidebar, nil
+    end
     self.db = fill(KrakenChatDB, DEFAULTS)
+    -- the teal look is parked for now: everyone gets the WoW style
+    self.db.settings.style = "wow"
     self.char = fill(KrakenChatCharDB, CHAR_DEFAULTS)
     for key, s in pairs(self.char.streams) do
         if type(s.msgs) ~= "table" then s.msgs = {} end
@@ -201,6 +216,12 @@ function KC:LoadDB()
         -- fixed streams take their label, cap and folding from the current code
         for k, v in pairs(KC.Fixed[key] or {}) do s[k] = v end
     end
+    -- a WoW-style theme swaps the colours before any frame is made
+    local palette = KC.Palettes[KC:Look().palette or ""]
+    if palette then
+        for k, v in pairs(palette) do KC.Theme[k] = v end
+    end
+    self.palette = KC:Look().palette
 end
 
 --------------------------------------------------------------------------------
@@ -226,6 +247,13 @@ end
 --------------------------------------------------------------------------------
 
 if StaticPopupDialogs then
+    StaticPopupDialogs.KRAKENCHAT_RELOAD = {
+        text = "This theme has a different frame and colours.\n\nReload the interface now to see it?",
+        button1 = YES or "Yes",
+        button2 = NO or "No",
+        OnAccept = function() ReloadUI() end,
+        timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+    }
     StaticPopupDialogs.KRAKENCHAT_CLEAR = {
         text = "Clear the whole chat history of this character?\n\nThis cannot be undone.",
         button1 = YES or "Yes",
@@ -239,9 +267,15 @@ local HELP = {
     "|cff4fd1c5/kc|r: open or close the chat window",
     "|cff4fd1c5/kc time|r: timestamps on or off",
     "|cff4fd1c5/kc font <10-18>|r: text size of the feed",
+    "|cff4fd1c5/kc side|r: fold the stream list in or out",
+    "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
+    "|cff4fd1c5/kc symbols|r: sidebar as symbols or names (|cff4fd1c5/kc symbols round|r for round ones)",
+    "|cff4fd1c5/kc settings|r: open the settings window",
+    "|cff4fd1c5/kc whisperopen|r: whether a whisper unfolds the folded-in chat",
+    "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",
-    "|cff4fd1c5/kc resetwindow|r: move the window back to the middle of the screen",
+    "|cff4fd1c5/kc resetwindow|r: window back to the bottom left at its default size",
     "|cff4fd1c5/kc clear|r: erase this character's chat history",
 }
 
@@ -261,14 +295,35 @@ function KC:Slash(input)
         settings.fontSize = floor(n)
         self:Fire("LAYOUT")
         self:Print("Font size " .. settings.fontSize .. ".")
+    elseif cmd == "side" then
+        self.UI:Create()
+        self.UI:ToggleSide()
+    elseif cmd == "compact" then
+        self.UI:Create()
+        if not self.UI.frame:IsShown() then self.UI:Show() end
+        self.UI:ToggleChat()
+    elseif cmd == "symbols" or cmd == "symbol" or cmd == "text" then
+        self.UI:Create()
+        local sidebar = (cmd == "text" and "text") or (rest == "round" and "round") or (settings.sidebar == "text" and "symbols" or "text")
+        self.UI:SetLook(settings.style, sidebar)
+        self:Print(sidebar == "text" and "Sidebar: names." or "Sidebar: symbols (names are in the tooltips).")
+    elseif cmd == "settings" or cmd == "options" or cmd == "config" then
+        self.Options:Toggle()
+    elseif cmd == "whisperopen" then
+        settings.openOnWhisper = not settings.openOnWhisper
+        self:Print("A whisper " .. (settings.openOnWhisper and "unfolds the chat." or "no longer unfolds the chat."))
+    elseif cmd == "blizzard" then
+        settings.hideBlizzard = not settings.hideBlizzard
+        self.Blizzard:Apply()
+        self:Print("The game's chat window is " .. (settings.hideBlizzard and "hidden." or "shown again."))
     elseif cmd == "minimap" then
         settings.minimap.hide = not settings.minimap.hide
         self:Fire("SETTINGS")
         self:Print("Minimap button " .. (settings.minimap.hide and "hidden." or "shown."))
     elseif cmd == "demo" then
         self:ToggleDemo()
-    elseif cmd == "resetwindow" then
-        settings.window = {}
+    elseif cmd == "resetwindow" or cmd == "reset" then
+        self.UI:Create()
         self.UI:ResetPosition()
     elseif cmd == "clear" then
         if StaticPopup_Show then StaticPopup_Show("KRAKENCHAT_CLEAR") end

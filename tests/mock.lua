@@ -69,8 +69,10 @@ function Object:RegisterEvent(e)
 end
 function Object:UnregisterEvent(e) self._events[e] = nil end
 function Object:CreateTexture() return new("Texture", self) end
+function Object:CreateMaskTexture() return new("MaskTexture", self) end
 function Object:CreateFontString() local fs = new("FontString", self); rawset(fs, "_text", ""); return fs end
 function Object:GetParent() return self._parent end
+function Object:SetParent(p) rawset(self, "_parent", p) end
 function Object:SetText(t)
     if issecretvalue(t) then rawset(self, "_text", "<secret>"); rawset(self, "_secret", true); return end
     rawset(self, "_text", t); rawset(self, "_secret", false)
@@ -79,6 +81,7 @@ end
 function Object:GetText() return self._text end
 function Object:GetStringHeight() if self._secret then return SECRET end return 14 end
 function Object:GetStringWidth() return 50 end
+function Object:IsTruncated() return TRUNCATE ~= nil and TRUNCATE[self._text] or false end
 function Object:GetVerticalScroll() return self._scroll or 0 end
 function Object:SetVerticalScroll(v) rawset(self, "_scroll", v) end
 function Object:GetPoint() return "CENTER", nil, "CENTER", 0, 0 end
@@ -86,6 +89,8 @@ function Object:GetCenter() return 100, 100 end
 function Object:GetEffectiveScale() return 1 end
 function Object:GetFrameLevel() return 1 end
 function Object:SetFont() return true end
+function Object:SetTexture(f) rawset(self, "_file", f) end
+function Object:SetColorTexture(r, g, b, a) rawset(self, "_color", { r, g, b, a }) end
 
 function CreateFrame(kind, name, parent)
     local f = new(kind or "Frame", parent)
@@ -120,7 +125,7 @@ function StaticPopup_Show(which) POPUPS[#POPUPS + 1] = { which = which }; return
 function geterrorhandler() return function(err) ERRORS[#ERRORS + 1] = err; print("  !! ERROR: " .. tostring(err)) end end
 STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end
-function GetCursorPosition() return 0, 0 end
+function GetCursorPosition() if CURSOR then return CURSOR[1], CURSOR[2] end return 0, 0 end
 function IsShiftKeyDown() return false end
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
@@ -158,6 +163,31 @@ function GetChannelName(name) if name == "Trade" then return 2 end return 0 end
 LINKS = {}
 function SetItemRef(link) LINKS[#LINKS + 1] = link end
 
+NUM_CHAT_WINDOWS = 3
+for i = 1, 3 do
+    local cf = CreateFrame("Frame", "ChatFrame" .. i, UIParent)
+    CreateFrame("Button", "ChatFrame" .. i .. "Tab", UIParent)
+end
+ChatFrame1EditBox = CreateFrame("EditBox", "ChatFrame1EditBox", ChatFrame1)
+GeneralDockManager = CreateFrame("Frame", "GeneralDockManager", UIParent)
+function hooksecurefunc(t, name, fn)
+    if type(t) == "string" then t, name, fn = _G, t, name end
+    local orig = t[name]
+    t[name] = function(...) local r = orig(...); fn(...); return r end
+end
+function ChatEdit_DeactivateChat(box) end
+function ChatEdit_ActivateChat(box) end
+function ChatFrame_DeactivateForTest(box) ChatEdit_DeactivateChat(box) end
+
+C_PartyInfo = { InviteUnit = function(name) INVITED = name end }
+ERR_JOINED_GROUP_S = "%s joins the party."
+ERR_LEFT_GROUP_YOU = "You leave the group."
+ERR_SET_LOOT_THRESHOLD_S = "Loot threshold set to %s."
+ERR_INVITED_ALREADY_IN_GROUP_SS = "%s invited you to a group, but you could not accept because you are already in a group."
+RANDOM_ROLL_RESULT = "%s rolls %d (%d-%d)"
+GROUP = { party = false, raid = false }
+function IsInGroup() return GROUP.party or GROUP.raid end
+function IsInRaid() return GROUP.raid end
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 
 KNOWN_EVENTS = { ADDON_LOADED = true, PLAYER_LOGIN = true, PLAYER_LOGOUT = true }

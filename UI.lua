@@ -6,10 +6,13 @@ local call = KC.call
 local UI = { expanded = {}, atBottom = true, newBelow = 0 }
 KC.UI = UI
 
-local DEFAULT_W, DEFAULT_H = 640, 400
-local MIN_W, MIN_H = 420, 220
+local DEFAULT_W, DEFAULT_H = 420, 250
+local DEFAULT_X, DEFAULT_Y = 40, 44 -- bottom left, with room below for the chat input
+local MIN_W, MIN_H = 360, 140
 local HEADER = 34
 local SIDE_W = 156
+local RAIL_W = 30 -- the sidebar folded in
+local SYMBOL_W = 46 -- the sidebar as a column of symbols (/kc symbols)
 local FOOTER = 26
 local PAD = 10
 local TIME_W = 38
@@ -111,6 +114,106 @@ local function Chevron(parent)
 end
 
 local function fontSize() return KC.db.settings.fontSize or 12 end
+
+-- Unread badges: red for whispers and your group, a calm dark gold for guild
+-- chat; for Say, Yell and channels only a small grey number ("quiet").
+local function paintBadge(bg, count, kind)
+    if kind == "quiet" then
+        bg:SetColorTexture(0, 0, 0, 0)
+        count:SetTextColor(rgb(Theme.dim))
+        return
+    end
+    local c = kind and Theme.accent2 or Theme.calm
+    bg:SetColorTexture(c[1], c[2], c[3], 1)
+    count:SetTextColor(rgb(kind and Theme.text or Theme.accent))
+end
+
+-- Red ("pressing") for whispers and your own group (party, raid, instance),
+-- dark gold for guild and officer, a grey number for Say, Yell and channels.
+local PRESSING = { party = true, raid = true, instance = true }
+
+local function badgeKind(s)
+    if s.sec == "conv" or PRESSING[s.key] then return true end
+    local sec = KC:SectionOf(s)
+    return (sec and sec.quiet) and "quiet" or false
+end
+UI.BadgeKind = badgeKind
+UI.PaintBadge = paintBadge
+
+-- for the settings window
+UI.Draw = { Solid = Solid, Text = Text, Border = Border, Strokes = Strokes, rgb = rgb }
+
+-- The sidebar is folded into the rail only while the chat is out: with the
+-- chat folded in, the stream list is all there is.
+local function railed()
+    local s = KC.db.settings
+    return s.sideCollapsed and not s.chatCollapsed
+end
+
+local function sideWidth()
+    if railed() then return RAIL_W end
+    return KC:Look().symbols and SYMBOL_W or SIDE_W
+end
+
+--------------------------------------------------------------------------------
+-- Symbols
+--------------------------------------------------------------------------------
+
+local fileCache = {}
+local function resolveFile(path)
+    -- our own files aren't in the game's file list; they're always there
+    if not GetFileIDFromPath or path:find("^Interface\\AddOns\\") then return path end
+    local id = fileCache[path]
+    if id == nil then
+        id = call(GetFileIDFromPath, path) or false
+        fileCache[path] = id
+    end
+    return id
+end
+
+local function setFile(tex, candidates)
+    for _, path in ipairs(candidates) do
+        local file = resolveFile(path)
+        if file then
+            tex:SetTexture(file)
+            -- game icons have a border to crop; our own icon doesn't
+            if path:find("^Interface\\AddOns\\") then tex:SetTexCoord(0, 1, 0, 1) else tex:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
+            return true
+        end
+    end
+end
+
+-- The symbol of a stream: a class icon for a whisper partner, the channel's own
+-- symbol, or the stream's.
+function UI.SetSymbol(tex, s)
+    if s and s.sec == "conv" and s.class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[s.class] then
+        local c = CLASS_ICON_TCOORDS[s.class]
+        tex:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
+        tex:SetTexCoord(c[1], c[2], c[3], c[4])
+        tex:SetVertexColor(1, 1, 1)
+        return
+    end
+    local list
+    if not s then
+        list = KC.Symbols.all
+    elseif s.bn then
+        list = KC.Symbols.bnet
+    elseif s.sec == "conv" then
+        list = KC.Symbols.whisper
+    elseif s.sec == "channels" then
+        list = KC.ChannelSymbol(s.label) or KC.Symbols.channel
+    else
+        list = KC.Symbols[s.key] or KC.Symbols.unknown
+    end
+    if not setFile(tex, list) then setFile(tex, KC.Symbols.unknown) end
+    local tint = s and KC.SymbolTints[s.key]
+    if tint then
+        local info = ChatTypeInfo and ChatTypeInfo[tint.type]
+        if info and info.r then tex:SetVertexColor(info.r, info.g, info.b) else tex:SetVertexColor(tint.r, tint.g, tint.b) end
+    else
+        tex:SetVertexColor(1, 1, 1)
+    end
+end
 
 --------------------------------------------------------------------------------
 -- Replying: opens the game's chat input set up for the stream.
@@ -288,7 +391,7 @@ function factories.section(parent)
         if self.id == "conv" and button == "RightButton" then
             KC.db.settings.sort = KC.db.settings.sort == "name" and "recent" or "name"
         else
-            c[self.id] = not c[self.id] or nil
+            c[self.id] = not c[self.id] -- false, not nil: a default must not come back
         end
         UI:RenderSidebar()
     end)
@@ -311,21 +414,101 @@ function factories.stream(parent)
     w.badge = CreateFrame("Frame", nil, w)
     w.badge:SetSize(22, 14)
     w.badge:SetPoint("RIGHT", -8, 0)
-    Solid(w.badge, "ARTWORK", Theme.accent2):SetAllPoints()
+    w.badgeBg = Solid(w.badge, "ARTWORK", Theme.accent2)
+    w.badgeBg:SetAllPoints()
     w.count = Text(w.badge, 9, Theme.text, "CENTER")
     w.count:SetPoint("CENTER", 0, 0)
+    -- "folded", "unfolded" or "hidden": a change you made with right-click
+    w.flag = Text(w, 9, Theme.dim, "RIGHT")
+    w.flag:SetPoint("RIGHT", w.badge, "LEFT", -4, 0)
     w.label = Text(w, 12)
     w.label:SetPoint("LEFT", 20, 0)
-    w.label:SetPoint("RIGHT", w.badge, "LEFT", -4, 0)
-    w:SetScript("OnEnter", function(self) self.hl:Show() end)
-    w:SetScript("OnLeave", function(self) self.hl:Hide() end)
-    w:SetScript("OnClick", function(self, button)
-        if button == "RightButton" then
-            if self.key ~= "all" then UI:StreamMenu(self, self.key) end
-        else
-            UI:Select(self.key)
+    w.label:SetPoint("RIGHT", w.flag, "LEFT", -4, 0)
+    w:SetScript("OnEnter", function(self)
+        self.hl:Show()
+        if self.full then -- the name was shortened: the whole of it
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(self.full, 1, 1, 1)
+            GameTooltip:Show()
         end
     end)
+    w:SetScript("OnLeave", function(self)
+        self.hl:Hide()
+        GameTooltip:Hide()
+    end)
+    w:SetScript("OnClick", factories.streamClick)
+    return w
+end
+
+function factories.streamClick(self, button)
+    if button == "RightButton" then
+        if self.key ~= "all" then UI:StreamMenu(self, self.key) end
+    else
+        UI:Select(self.key)
+        if KC.db.settings.chatCollapsed then UI:ToggleChat() end
+    end
+end
+
+-- A stream as a symbol, for /kc symbols. The name is in the tooltip.
+function factories.icon(parent)
+    local w = CreateFrame("Button", nil, parent)
+    w:SetSize(SYMBOL_W, 34)
+    w:RegisterForClicks("AnyUp")
+    w.hl = Solid(w, "BACKGROUND", Theme.hover)
+    w.hl:SetPoint("TOPLEFT", 4, -1)
+    w.hl:SetPoint("BOTTOMRIGHT", -4, 1)
+    w.hl:Hide()
+    w.stripe = Solid(w, "ARTWORK", Theme.accent)
+    w.stripe:SetPoint("LEFT", 0, 0)
+    w.stripe:SetSize(2, 22)
+    w.ring = Solid(w, "BORDER", Theme.accent, 0.9)
+    w.ring:SetSize(30, 30)
+    w.ring:SetPoint("CENTER", 1, 0)
+    w.icon = w:CreateTexture(nil, "ARTWORK")
+    w.icon:SetSize(26, 26)
+    w.icon:SetPoint("CENTER", 1, 0)
+    -- round themes: a circle mask on the symbol and its ring
+    w.mask = w:CreateMaskTexture()
+    w.mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    w.mask:SetAllPoints(w.icon)
+    w.ringMask = w:CreateMaskTexture()
+    w.ringMask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    w.ringMask:SetAllPoints(w.ring)
+    w.badge = CreateFrame("Frame", nil, w)
+    w.badge:SetSize(16, 12)
+    w.badge:SetPoint("TOPRIGHT", -3, -1)
+    w.badge:SetFrameLevel(w:GetFrameLevel() + 3)
+    w.badgeBg = Solid(w.badge, "OVERLAY", Theme.accent2)
+    w.badgeBg:SetAllPoints()
+    w.count = Text(w.badge, 8, Theme.text, "CENTER")
+    w.count:SetPoint("CENTER", 0, 0)
+    w:SetScript("OnEnter", function(self)
+        self.hl:Show()
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(self.label or "", 1, 1, 1)
+        if self.unread and self.unread > 0 then GameTooltip:AddLine(self.unread .. " unread", 0.55, 0.42, 0.95) end
+        local flag = streamFlag(self.key, KC:Stream(self.key))
+        if flag == "hidden" then GameTooltip:AddLine('Hidden in "All messages"', 0.56, 0.6, 0.66) end
+        if flag == "folded" then GameTooltip:AddLine('Folded in "All messages"', 0.56, 0.6, 0.66) end
+        if flag == "unfolded" then GameTooltip:AddLine('Not folded in "All messages"', 0.56, 0.6, 0.66) end
+        GameTooltip:AddLine("Right-click for options", 0.56, 0.6, 0.66)
+        GameTooltip:Show()
+    end)
+    w:SetScript("OnLeave", function(self)
+        self.hl:Hide()
+        GameTooltip:Hide()
+    end)
+    w:SetScript("OnClick", factories.streamClick)
+    return w
+end
+
+function factories.sep(parent)
+    local w = CreateFrame("Frame", nil, parent)
+    w:SetSize(SYMBOL_W, 9)
+    local line = Solid(w, "ARTWORK", Theme.line)
+    line:SetHeight(1)
+    line:SetPoint("LEFT", 10, 0)
+    line:SetPoint("RIGHT", -8, 0)
     return w
 end
 
@@ -363,19 +546,60 @@ end
 -- The window
 --------------------------------------------------------------------------------
 
+-- "<" (fold in) or ">" (fold out), drawn with two strokes.
+local function Arrow(parent)
+    local a = { parent:CreateTexture(nil, "ARTWORK"), parent:CreateTexture(nil, "ARTWORK") }
+    for _, s in ipairs(a) do
+        s:SetSize(6, 1.5)
+        s:SetColorTexture(rgb(Theme.dim))
+    end
+    function a.Point(dir)
+        local sign = dir == "left" and 1 or -1
+        a[1]:ClearAllPoints()
+        a[2]:ClearAllPoints()
+        a[1]:SetPoint("CENTER", parent, "CENTER", 0, 2)
+        a[2]:SetPoint("CENTER", parent, "CENTER", 0, -2)
+        a[1]:SetRotation(math.rad(45 * sign))
+        a[2]:SetRotation(math.rad(-45 * sign))
+    end
+    function a.Color(color)
+        for _, s in ipairs(a) do s:SetColorTexture(rgb(color)) end
+    end
+    return a
+end
+
 function UI:SaveGeometry()
     local f = self.frame
     local point, _, relPoint, x, y = f:GetPoint()
     local win = KC.db.settings.window
     win.point, win.relPoint, win.x, win.y = point, relPoint, x, y
-    win.w, win.h = math.floor(f:GetWidth() + 0.5), math.floor(f:GetHeight() + 0.5)
+    -- folded to the stream list, the window is narrow; keep the chat's width for later
+    if not KC.db.settings.chatCollapsed then win.w = math.floor(f:GetWidth() + 0.5) end
+    win.h = math.floor(f:GetHeight() + 0.5)
+end
+
+-- Keeps the window inside the screen, with room below or above it for the
+-- chat input. A saved size from a bigger screen (or a bad drag) can't stick.
+function UI:FitToScreen()
+    local f = self.frame
+    local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
+    if not (f and sw and sh and sw > 0 and sh > 0) then return end
+    local win = KC.db.settings.window
+    if win.w and win.w > sw - 20 then win.w = math.min(DEFAULT_W, sw - 20) end
+    if win.h and win.h > sh - 60 then win.h = math.min(DEFAULT_H, sh - 60) end
+    local w = math.min(f:GetWidth(), sw - 20)
+    local h = math.min(f:GetHeight(), sh - 60)
+    if w ~= f:GetWidth() or h ~= f:GetHeight() then f:SetSize(w, h) end
 end
 
 function UI:ResetPosition()
     if not self.frame then return end
+    KC.db.settings.window = {}
     self.frame:ClearAllPoints()
-    self.frame:SetPoint("CENTER")
+    self.frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DEFAULT_X, DEFAULT_Y)
+    KC.db.settings.chatCollapsed = false
     self.frame:SetSize(DEFAULT_W, DEFAULT_H)
+    self:ApplyChat()
     self:SaveGeometry()
     self:Show()
 end
@@ -387,10 +611,11 @@ function UI:Create()
     self.frame = f
     local win = KC.db.settings.window
     f:SetSize(win.w or DEFAULT_W, win.h or DEFAULT_H)
+    self:FitToScreen()
     if win.point then
         f:SetPoint(win.point, UIParent, win.relPoint or win.point, win.x or 0, win.y or 0)
     else
-        f:SetPoint("BOTTOMLEFT", 40, 140)
+        f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DEFAULT_X, DEFAULT_Y)
     end
     f:SetFrameStrata("MEDIUM")
     f:SetToplevel(true)
@@ -403,7 +628,9 @@ function UI:Create()
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", function(frame)
         frame:StopMovingOrSizing()
+        UI:FitToScreen()
         UI:SaveGeometry()
+        KC:Fire("GEOMETRY") -- the chat input follows (above the window near the bottom edge)
     end)
     f:SetScript("OnShow", function()
         KC.db.settings.shown = true
@@ -413,10 +640,25 @@ function UI:Create()
         KC.db.settings.shown = false
         if UI.menu then UI.menu:Hide() end
     end)
-    f:SetScript("OnSizeChanged", function() UI:Request("feed") end)
+    f:SetScript("OnSizeChanged", function()
+        UI:Request("feed")
+        KC:Fire("GEOMETRY")
+    end)
 
-    -- backdrop: deep panel, faint teal glow at the top, teal-to-violet rim
-    Solid(f, "BACKGROUND", Theme.bg):SetAllPoints()
+    if KC:Look().palette == "wow" then
+        self.backdrop, self.band = self:CreateWoWFrame(f)
+    else
+        self.flatBg = self:CreateFlatFrame(f)
+    end
+
+    -- header, sidebar, chat
+    self:CreateContent(f)
+end
+
+-- Krakenfriends' look: deep panel, faint teal glow at the top, teal-to-violet rim.
+function UI:CreateFlatFrame(f)
+    local bg = Solid(f, "BACKGROUND", Theme.bg)
+    bg:SetAllPoints()
     local glow = f:CreateTexture(nil, "BACKGROUND", nil, 1)
     glow:SetPoint("TOPLEFT", 1, -1)
     glow:SetPoint("TOPRIGHT", -1, -1)
@@ -428,11 +670,64 @@ function UI:Create()
     rim:SetPoint("TOPRIGHT", -1, -1)
     rim:SetHeight(2)
     Gradient(rim, "HORIZONTAL", Theme.accent, 1, Theme.accent2, 1)
+    return bg
+end
 
-    -- header: title, search, close
-    local title = Text(f, 13)
-    title:SetPoint("TOPLEFT", 12, -11)
-    title:SetText("|cff4fd1c5Kraken|rchat")
+-- The game's own look: dark stone inside a gold dialog border, the title in
+-- the fantasy font, a dark band behind the header.
+local WOW_EDGES = { "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", "Interface\\DialogFrame\\UI-DialogBox-Border" }
+local WOW_BACKS = { "Interface\\FrameGeneral\\UI-Background-Rock", "Interface\\DialogFrame\\UI-DialogBox-Background-Dark" }
+
+local function firstFile(list)
+    for _, path in ipairs(list) do
+        if not GetFileIDFromPath or call(GetFileIDFromPath, path) then return path end
+    end
+    return list[#list]
+end
+
+function UI:CreateWoWFrame(f)
+    local frame = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    frame:SetPoint("TOPLEFT", -7, 7)
+    frame:SetPoint("BOTTOMRIGHT", 7, -7)
+    frame:SetFrameLevel(math.max(0, f:GetFrameLevel()))
+    if frame.SetBackdrop then
+        frame:SetBackdrop({
+            bgFile = firstFile(WOW_BACKS), tile = true, tileSize = 256,
+            edgeFile = firstFile(WOW_EDGES), edgeSize = 32,
+            insets = { left = 9, right = 9, top = 9, bottom = 9 },
+        })
+        frame:SetBackdropColor(0.55, 0.55, 0.55, 1)
+    end
+    local band = Solid(f, "BACKGROUND", { 0, 0, 0 }, 0.45)
+    band:SetPoint("TOPLEFT", 2, -2)
+    band:SetPoint("TOPRIGHT", -2, -2)
+    band:SetHeight(HEADER - 2)
+    return frame, band
+end
+
+-- The background's opacity (settings: Background). The border and the text
+-- stay solid.
+function UI:ApplyAlpha()
+    if not self.frame then return end
+    local a = KC.db.settings.bgAlpha or 1
+    if self.backdrop and self.backdrop.SetBackdropColor then self.backdrop:SetBackdropColor(0.55, 0.55, 0.55, a) end
+    if self.band then self.band:SetAlpha(a) end
+    if self.flatBg then self.flatBg:SetAlpha(a) end
+    if self.sideBg then self.sideBg:SetAlpha(a) end
+end
+
+-- The header (title, search, close), the sidebar and the chat.
+function UI:CreateContent(f)
+    local wow = KC:Look().palette == "wow"
+    local title = Text(f, wow and 16 or 13, wow and Theme.accent or nil)
+    title:SetPoint("TOPLEFT", 12, wow and -9 or -11)
+    if wow then
+        if not pcall(title.SetFont, title, "Fonts\\MORPHEUS.TTF", 17, "") then title:SetFont(FONT, 15, "") end
+        title:SetText("KrakenChat")
+    else
+        title:SetText("|cff4fd1c5Kraken|rchat")
+    end
+    self.title = title
 
     self.viewTitle = Text(f, 11, Theme.dim)
     self.viewTitle:SetPoint("LEFT", title, "RIGHT", 10, -1)
@@ -445,7 +740,46 @@ function UI:Create()
     close:SetScript("OnLeave", function() for _, s in ipairs(x) do s:SetColorTexture(Theme.dim[1], Theme.dim[2], Theme.dim[3], 1) end end)
     close:SetScript("OnClick", function() f:Hide() end)
 
-    self:CreateSearch(f, close)
+    -- fold the chat in: the window narrows to the stream list
+    local chatToggle = CreateFrame("Button", nil, f)
+    chatToggle:SetSize(18, 18)
+    chatToggle:SetPoint("RIGHT", close, "LEFT", -4, 0)
+    chatToggle.arrow = Arrow(chatToggle)
+    chatToggle:SetScript("OnEnter", function(self)
+        self.arrow.Color(Theme.text)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(KC.db.settings.chatCollapsed and "Show the chat" or "Fold the chat in (streams only)", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    chatToggle:SetScript("OnLeave", function(self)
+        self.arrow.Color(Theme.dim)
+        GameTooltip:Hide()
+    end)
+    chatToggle:SetScript("OnClick", function() UI:ToggleChat() end)
+    self.chatToggle = chatToggle
+
+    local gear = CreateFrame("Button", nil, f)
+    gear:SetSize(18, 18)
+    gear:SetPoint("RIGHT", chatToggle, "LEFT", -2, 0)
+    gear.icon = gear:CreateTexture(nil, "ARTWORK")
+    gear.icon:SetSize(14, 14)
+    gear.icon:SetPoint("CENTER")
+    gear.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+    gear.icon:SetVertexColor(rgb(Theme.dim))
+    gear:SetScript("OnEnter", function(self)
+        self.icon:SetVertexColor(rgb(Theme.text))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Settings", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    gear:SetScript("OnLeave", function(self)
+        self.icon:SetVertexColor(rgb(Theme.dim))
+        GameTooltip:Hide()
+    end)
+    gear:SetScript("OnClick", function() KC.Options:Toggle() end)
+    self.gear = gear
+
+    self:CreateSearch(f, gear, title)
 
     local headLine = Solid(f, "ARTWORK", Theme.line)
     headLine:SetHeight(1)
@@ -456,15 +790,13 @@ function UI:Create()
     local sideBg = Solid(f, "BACKGROUND", Theme.side)
     sideBg:SetPoint("TOPLEFT", 1, -HEADER - 1)
     sideBg:SetPoint("BOTTOMLEFT", 1, 1)
-    sideBg:SetWidth(SIDE_W)
     local sideLine = Solid(f, "ARTWORK", Theme.line)
     sideLine:SetWidth(1)
-    sideLine:SetPoint("TOPLEFT", SIDE_W + 1, -HEADER - 1)
-    sideLine:SetPoint("BOTTOMLEFT", SIDE_W + 1, 1)
+    self.sideBg, self.sideLine = sideBg, sideLine
 
     local side = CreateFrame("ScrollFrame", nil, f)
     side:SetPoint("TOPLEFT", 1, -HEADER - 1)
-    side:SetPoint("BOTTOMLEFT", 1, 1)
+    side:SetPoint("BOTTOMLEFT", 1, 28)
     side:SetWidth(SIDE_W)
     local sideChild = CreateFrame("Frame", nil, side)
     sideChild:SetSize(SIDE_W, 1)
@@ -475,10 +807,10 @@ function UI:Create()
         sf:SetVerticalScroll(math.min(max, math.max(0, sf:GetVerticalScroll() - delta * 40)))
     end)
     self.side, self.sideChild = side, sideChild
+    self:CreateRail(f)
 
     -- feed
     local scroll = CreateFrame("ScrollFrame", nil, f)
-    scroll:SetPoint("TOPLEFT", SIDE_W + PAD + 1, -HEADER - 6)
     scroll:SetPoint("BOTTOMRIGHT", -PAD - 6, FOOTER + 6)
     local child = CreateFrame("Frame", nil, scroll)
     child:SetSize(1, 1)
@@ -516,7 +848,6 @@ function UI:Create()
 
     -- footer: reply
     local footer = CreateFrame("Button", nil, f)
-    footer:SetPoint("BOTTOMLEFT", SIDE_W + PAD + 1, 6)
     footer:SetPoint("BOTTOMRIGHT", -PAD - 12, 6)
     footer:SetHeight(FOOTER - 6)
     footer.bg = Solid(footer, "BACKGROUND", Theme.panel)
@@ -527,8 +858,6 @@ function UI:Create()
     footer.edge:SetWidth(2)
     footer.text = Text(footer, 11, Theme.dim)
     footer.text:SetPoint("LEFT", 10, 0)
-    footer.hint = Text(footer, 10, Theme.dim, "RIGHT")
-    footer.hint:SetPoint("RIGHT", -8, 0)
     footer:SetScript("OnEnter", function(self) self.text:SetTextColor(rgb(Theme.text)) end)
     footer:SetScript("OnLeave", function(self) self.text:SetTextColor(rgb(Theme.dim)) end)
     footer:SetScript("OnClick", function() UI:Reply(KC.db.settings.view) end)
@@ -545,18 +874,216 @@ function UI:Create()
         s:SetColorTexture(rgb(Theme.dim))
         s:SetRotation(math.rad(45))
     end
-    grip:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
-    grip:SetScript("OnMouseUp", function()
-        f:StopMovingOrSizing()
-        UI:SaveGeometry()
-        UI:RenderFeed()
+    self.grip = grip
+    -- Our own resizing: the game's StartSizing snaps the corner to the cursor,
+    -- which sits a few pixels inside the corner, so every click grew the window.
+    -- Here the size only changes by how far the mouse moves; the top-left
+    -- corner stays put and the window never grows past the screen.
+    grip:SetScript("OnMouseDown", function() UI:BeginResize() end)
+    grip:SetScript("OnMouseUp", function() UI:EndResize() end)
+    grip:SetScript("OnHide", function() UI:EndResize() end)
+
+    self:ApplyChat()
+    self:ApplyAlpha()
+end
+
+--------------------------------------------------------------------------------
+-- Folding the sidebar in: a slim rail with the unread count, so the chat gets
+-- the whole width. The window remembers it.
+--------------------------------------------------------------------------------
+
+function UI:CreateRail(f)
+    local toggle = CreateFrame("Button", nil, f)
+    toggle:SetSize(24, 24)
+    toggle:SetPoint("BOTTOMLEFT", 4, 3)
+    toggle.arrow = Arrow(toggle)
+    toggle:SetScript("OnEnter", function(self)
+        self.arrow.Color(Theme.text)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(KC.db.settings.sideCollapsed and "Show the streams" or "Fold the streams in", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    toggle:SetScript("OnLeave", function(self)
+        self.arrow.Color(Theme.dim)
+        GameTooltip:Hide()
+    end)
+    toggle:SetScript("OnClick", function() UI:ToggleSide() end)
+    self.sideToggle = toggle
+
+
+    -- while folded in: unread messages, click to fold out
+    local badge = CreateFrame("Button", nil, f)
+    badge:SetSize(22, 16)
+    badge:SetPoint("TOPLEFT", 4, -HEADER - 10)
+    badge.bg = Solid(badge, "ARTWORK", Theme.accent2)
+    badge.bg:SetAllPoints()
+    badge.count = Text(badge, 9, Theme.text, "CENTER")
+    badge.count:SetPoint("CENTER", 0, 0)
+    badge:SetScript("OnClick", function() UI:ToggleSide() end)
+    badge:Hide()
+    self.railBadge = badge
+end
+
+function UI:ApplySide()
+    local collapsed = railed()
+    local w = sideWidth()
+    self.sideBg:SetWidth(w)
+    self.side:SetWidth(w)
+    self.sideChild:SetWidth(w)
+    self.sideLine:ClearAllPoints()
+    self.sideLine:SetPoint("TOPLEFT", w + 1, -HEADER - 1)
+    self.sideLine:SetPoint("BOTTOMLEFT", w + 1, 1)
+    self.side:SetShown(not collapsed)
+    self.scroll:SetPoint("TOPLEFT", w + PAD + 1, -HEADER - 6)
+    self.footer:SetPoint("BOTTOMLEFT", w + PAD + 1, 6)
+    self.sideToggle.arrow.Point(collapsed and "right" or "left")
+    self.sideToggle:SetShown(not KC.db.settings.chatCollapsed)
+    self:UpdateRail()
+end
+
+--------------------------------------------------------------------------------
+-- Folding the chat in: the window narrows to just the stream list with its
+-- unread badges, like a buddy list. Clicking a stream opens the chat on it.
+--------------------------------------------------------------------------------
+
+local CHAT_PARTS = { "scroll", "track", "thumb", "empty", "footer" }
+
+function UI:ApplyChat()
+    local f, folded = self.frame, KC.db.settings.chatCollapsed and true or false
+    local win = KC.db.settings.window
+    local narrow = sideWidth() + 2
+    for _, key in ipairs(CHAT_PARTS) do self[key]:SetShown(not folded) end
+    if folded then
+        -- the chat comes back at the bottom (ToggleChat), so nothing is "new below"
+        self.newBelow = 0
+        self.pill:Hide()
+        if self.search:IsShown() then
+            self.search:SetText("")
+            self.search:Hide()
+        end
+        if f.SetResizeBounds then f:SetResizeBounds(narrow, MIN_H, narrow, 2000) end
+        f:SetWidth(narrow)
+    else
+        if f.SetResizeBounds then f:SetResizeBounds(MIN_W, MIN_H) end
+        f:SetWidth(math.max(MIN_W, win.w or DEFAULT_W))
+    end
+    self:FitToScreen()
+    self.chatToggle.arrow.Point(folded and "right" or "left")
+    -- folded with symbols, the window is only a column wide: no room for the title
+    self.title:SetShown(not (folded and KC:Look().symbols))
+    self:ApplySide()
+    self:RefreshHeader()
+end
+
+function UI:ToggleChat()
+    local settings = KC.db.settings
+    if not settings.chatCollapsed then self:SaveGeometry() end -- the width to come back to
+    settings.chatCollapsed = not settings.chatCollapsed
+    self:ApplyChat()
+    self:SaveGeometry()
+    if not settings.chatCollapsed then
+        self.atBottom = true
+        KC:MarkRead(settings.view)
+    end
+    self:RenderSidebar()
+    self:RenderFeed()
+end
+
+function UI:UpdateRail()
+    if not self.railBadge then return end
+    local unread, whispers = 0, false
+    if KC.db.settings.sideCollapsed then
+        for _, s in pairs(KC.char.streams) do
+            local sec = KC:SectionOf(s)
+            if sec and sec.personal then unread = unread + s.unread end
+            if s.unread > 0 and badgeKind(s) == true then whispers = true end -- something red waiting
+        end
+    end
+    self.railBadge.count:SetText(unread > 99 and "99+" or tostring(unread))
+    self.railBadge:SetShown(unread > 0)
+    paintBadge(self.railBadge.bg, self.railBadge.count, whispers)
+end
+
+function UI:ToggleSide()
+    local settings = KC.db.settings
+    settings.sideCollapsed = not settings.sideCollapsed or nil
+    self:ApplySide()
+    self:RenderSidebar()
+    self:RenderFeed()
+end
+
+-- A magnifier in the header; the search box only shows while you search.
+function UI:BeginResize()
+    local f = self.frame
+    local left, top = f:GetLeft(), f:GetTop()
+    if not (left and top) then return end
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    local scale = f:GetEffectiveScale()
+    local cx, cy = GetCursorPosition()
+    local start = { x = cx / scale, y = cy / scale, w = f:GetWidth(), h = f:GetHeight(), left = left, top = top }
+    self.resizing = start
+    self.grip:SetScript("OnUpdate", function()
+        local mx, my = GetCursorPosition()
+        UI:ResizeTo(start.w + (mx / scale - start.x), start.h - (my / scale - start.y))
     end)
 end
 
-function UI:CreateSearch(f, close)
+-- Sets the size within the limits: the window's minimum, the screen, and in
+-- the folded-in view a fixed width.
+function UI:ResizeTo(w, h)
+    local f, s = self.frame, self.resizing
+    local folded = KC.db.settings.chatCollapsed
+    local minW = folded and (sideWidth() + 2) or MIN_W
+    local maxW = folded and minW or math.max(minW, (UIParent:GetWidth() or 2000) - (s and s.left or 0))
+    local maxH = math.max(MIN_H, (s and s.top) or (UIParent:GetHeight() or 2000))
+    f:SetSize(math.max(minW, math.min(maxW, w)), math.max(MIN_H, math.min(maxH, h)))
+end
+
+function UI:EndResize()
+    if not self.resizing then return end
+    self.resizing = nil
+    self.grip:SetScript("OnUpdate", nil)
+    self:FitToScreen()
+    self:SaveGeometry()
+    self:RenderFeed()
+end
+
+function UI:CreateSearch(f, anchor, title)
+    local glass = CreateFrame("Button", nil, f)
+    glass:SetSize(18, 18)
+    glass:SetPoint("RIGHT", anchor, "LEFT", -4, 0)
+    glass.icon = glass:CreateTexture(nil, "ARTWORK")
+    glass.icon:SetSize(13, 13)
+    glass.icon:SetPoint("CENTER")
+    glass.icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+    glass.icon:SetVertexColor(rgb(Theme.dim))
+    glass:SetScript("OnEnter", function(self)
+        self.icon:SetVertexColor(rgb(Theme.text))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Search", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    glass:SetScript("OnLeave", function(self)
+        self.icon:SetVertexColor(rgb(Theme.dim))
+        GameTooltip:Hide()
+    end)
+    self.glass = glass
+
     local box = CreateFrame("EditBox", nil, f)
-    box:SetSize(170, 20)
-    box:SetPoint("RIGHT", close, "LEFT", -10, 0)
+    box:SetHeight(20)
+    box:SetPoint("RIGHT", glass, "LEFT", -4, 0)
+    box:SetPoint("LEFT", title, "RIGHT", 10, 0)
+    box:Hide()
+    glass:SetScript("OnClick", function()
+        if box:IsShown() and (box:GetText() or "") == "" then
+            box:Hide()
+        else
+            box:Show()
+            box:SetFocus()
+        end
+        UI:RefreshHeader()
+    end)
     box:SetAutoFocus(false)
     box:SetFont(FONT, 11, "")
     box:SetTextColor(rgb(Theme.text))
@@ -581,10 +1108,21 @@ function UI:CreateSearch(f, close)
     end)
     clear:Hide()
 
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
     box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     box:SetScript("OnEditFocusGained", function() box.placeholder:Hide() end)
-    box:SetScript("OnEditFocusLost", function(self) box.placeholder:SetShown((self:GetText() or "") == "") end)
+    box:SetScript("OnEditFocusLost", function(self)
+        -- an empty search folds back into the magnifier
+        if (self:GetText() or "") == "" then
+            self:Hide()
+            UI:RefreshHeader()
+        else
+            box.placeholder:Hide()
+        end
+    end)
     box:SetScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
         clear:SetShown(text ~= "")
@@ -631,7 +1169,8 @@ function UI:ScrollToBottom()
 end
 
 function UI:UpdatePill()
-    if self.newBelow > 0 and not self.atBottom then
+    -- only over an open chat: never over the folded-in stream list
+    if self.newBelow > 0 and not self.atBottom and not KC.db.settings.chatCollapsed then
         self.pill.text:SetText(self.newBelow == 1 and "1 new message" or (self.newBelow .. " new messages"))
         self.pill:Show()
     else
@@ -686,7 +1225,7 @@ local function layoutMsg(w, item, width, all)
         w.body:SetPoint("TOPLEFT", bodyX, -top)
         w.body:SetWidth(math.max(40, width - bodyX))
         w.body:SetTextColor(rgb(Theme.text))
-        w.body:SetText(Feed:Line(m, s, all))
+        w.body:SetText(Feed:Line(m, s, all, item.cont))
     end
     local h = KC.clean(w.body:GetStringHeight()) or size
     if type(h) ~= "number" or h < size then h = size end
@@ -696,7 +1235,7 @@ local function layoutMsg(w, item, width, all)
 end
 
 function UI:RenderFeed()
-    if not (self.frame and self.frame:IsShown()) then
+    if not (self.frame and self.frame:IsShown()) or KC.db.settings.chatCollapsed then
         self.dirty = true
         return
     end
@@ -728,7 +1267,7 @@ function UI:RenderFeed()
     release({ "msg", "fold", "day" })
     local entries = Feed:Collect(view, query)
     local items = Feed:Build(entries, all and not query, self.expanded)
-    local width = math.max(100, self.frame:GetWidth() - SIDE_W - PAD * 2 - 8)
+    local width = math.max(100, self.frame:GetWidth() - sideWidth() - PAD * 2 - 8)
     self.child:SetWidth(width)
 
     local y, layout = 0, {}
@@ -789,14 +1328,17 @@ function UI:RefreshHeader()
     local view = KC.db.settings.view
     local s = KC:Stream(view)
     local name = view == "all" and "All messages" or (s and s.label) or ""
-    if KC:IsMuted(view) then name = name .. " (hidden in All messages)" end
+    if KC:IsMuted(view) then name = name .. ' (hidden in "All messages")' end
     self.viewTitle:SetText(name)
+    -- with names in the sidebar the open stream is plain to see; with symbols
+    -- its name goes in the header (unless the search box is there)
+    local folded = KC.db.settings.chatCollapsed
+    self.viewTitle:SetShown(not folded and KC:Look().symbols and not self.search:IsShown())
+    self.glass:SetShown(not folded)
+    self.gear:SetShown(not folded)
     local reply = self:ReplyText(view)
-    self.footer:SetShown(reply ~= nil)
-    if reply then
-        self.footer.text:SetText(reply)
-        self.footer.hint:SetText("opens the chat input")
-    end
+    self.footer:SetShown(reply ~= nil and not folded)
+    if reply then self.footer.text:SetText(reply) end
 end
 
 --------------------------------------------------------------------------------
@@ -820,12 +1362,23 @@ local function sortStreams(sec, list)
     end
 end
 
+-- What you changed about a stream in "All messages", in a word (nil: as by default).
+local function streamFlag(key, s)
+    if not s or key == "all" then return nil end
+    if KC:IsMuted(key) then return "hidden" end
+    local override = KC.db.settings.fold[key]
+    if override == nil or override == (s.fold and true or false) then return nil end
+    return override and "folded" or "unfolded"
+end
+UI.StreamFlag = streamFlag
+
 local function fillStream(w, key, label, s)
     local settings = KC.db.settings
     local selected = settings.view == key
     w.key = key
     w.sel:SetShown(selected)
     w.stripe:SetShown(selected)
+    w.flag:SetText(streamFlag(key, s) or "")
     local muted = key ~= "all" and KC:IsMuted(key)
     local r, g, b = rgb(Theme.text)
     if s and s.class then
@@ -835,9 +1388,19 @@ local function fillStream(w, key, label, s)
     if muted then r, g, b = Theme.dim[1] * 0.8, Theme.dim[2] * 0.8, Theme.dim[3] * 0.8 end
     w.label:SetText(label)
     w.label:SetTextColor(r, g, b)
+    -- too long for the sidebar: "Misseseseses Hazecaller" becomes "Misseseseses H."
+    -- (the game adds "..." if even that doesn't fit); the tooltip has it all
+    w.full = nil
+    local ok, cut = pcall(w.label.IsTruncated, w.label)
+    if ok and KC.clean(cut) then
+        w.full = label
+        local first, initial = label:match("^(%S+)%s+(%S)")
+        if first then w.label:SetText(first .. " " .. initial:upper() .. ".") end
+    end
     local unread = s and s.unread or 0
     w.badge:SetShown(unread > 0)
     w.count:SetText(unread > 99 and "99+" or tostring(unread))
+    if unread > 0 then paintBadge(w.badgeBg, w.count, badgeKind(s)) end
 end
 
 function UI:RenderSidebar()
@@ -845,7 +1408,9 @@ function UI:RenderSidebar()
         self.dirty = true
         return
     end
-    release({ "section", "stream" })
+    self:UpdateRail()
+    release({ "section", "stream", "icon", "sep" })
+    if KC:Look().symbols then return self:RenderSymbols() end
     local child = self.sideChild
     local y = 6
 
@@ -873,10 +1438,13 @@ function UI:RenderSidebar()
             h.id = sec.id
             h.label:SetText(sec.label:upper())
             h.chev:SetOpen(not collapsed[sec.id])
-            local unread = 0
-            for _, s in ipairs(list) do unread = unread + s.unread end
+            local unread, pressing = 0, false
+            for _, s in ipairs(list) do
+                unread = unread + s.unread
+                if s.unread > 0 and badgeKind(s) == true then pressing = true end
+            end
             if collapsed[sec.id] and unread > 0 then
-                h.extra:SetText(KC.Colorize(tostring(unread), rgb(Theme.accent2)))
+                h.extra:SetText(KC.Colorize(tostring(unread), rgb((pressing and { 1, 0.3, 0.25 }) or (sec.quiet and Theme.dim) or Theme.accent)))
             elseif sec.id == "conv" then
                 h.extra:SetText(KC.db.settings.sort == "name" and "a-z" or "recent")
             else
@@ -897,8 +1465,86 @@ function UI:RenderSidebar()
     child:SetHeight(y + 6)
 end
 
+local function fillIcon(w, key, label, s)
+    local selected = KC.db.settings.view == key
+    w.key, w.label = key, label
+    w.unread = s and s.unread or 0
+    w.muted = key ~= "all" and KC:IsMuted(key)
+    w.stripe:SetShown(selected)
+    w.ring:SetShown(selected)
+    UI.SetSymbol(w.icon, s)
+    local round = KC:Look().round and true or false
+    if w.round ~= round then
+        w.round = round
+        if round then
+            w.icon:AddMaskTexture(w.mask)
+            w.ring:AddMaskTexture(w.ringMask)
+        else
+            w.icon:RemoveMaskTexture(w.mask)
+            w.ring:RemoveMaskTexture(w.ringMask)
+        end
+    end
+    if w.icon.SetDesaturated then w.icon:SetDesaturated(w.muted) end
+    w.icon:SetAlpha(w.muted and 0.45 or 1)
+    w.badge:SetShown(w.unread > 0)
+    w.count:SetText(w.unread > 99 and "99" or tostring(w.unread))
+    if w.unread > 0 then paintBadge(w.badgeBg, w.count, badgeKind(s)) end
+end
+
+-- The sidebar as one column of symbols, sections apart by a thin line.
+function UI:RenderSymbols()
+    local child = self.sideChild
+    local y = 6
+    local w = acquire("icon", child)
+    w:SetPoint("TOPLEFT", 0, -y)
+    fillIcon(w, "all", "All messages", nil)
+    y = y + 34
+
+    local bySection = {}
+    for _, s in pairs(KC.char.streams) do
+        if s.sec and #s.msgs > 0 then
+            bySection[s.sec] = bySection[s.sec] or {}
+            table.insert(bySection[s.sec], s)
+        end
+    end
+    for _, sec in ipairs(KC.Sections) do
+        local list = bySection[sec.id]
+        if list then
+            sortStreams(sec.id, list)
+            local line = acquire("sep", child)
+            line:SetPoint("TOPLEFT", 0, -y)
+            y = y + 9
+            for _, s in ipairs(list) do
+                local row = acquire("icon", child)
+                row:SetPoint("TOPLEFT", 0, -y)
+                fillIcon(row, s.key, s.label, s)
+                y = y + 34
+            end
+        end
+    end
+    child:SetHeight(y + 6)
+end
+
+-- Switching the look opens the chat, so it shows in full.
+function UI:SetLook(style, sidebar)
+    local settings = KC.db.settings
+    if settings.chatCollapsed then self:SaveGeometry() end
+    settings.style, settings.sidebar = style, sidebar
+    settings.chatCollapsed = false
+    if not self.frame:IsShown() then self.frame:Show() end
+    self:ApplyChat()
+    self:SaveGeometry()
+    self:RenderSidebar()
+    self:RenderFeed()
+    -- a different frame and colours are built at load
+    if KC:Look().palette ~= KC.palette and StaticPopup_Show then StaticPopup_Show("KRAKENCHAT_RELOAD") end
+end
+
 function UI:Select(key)
     KC.db.settings.view = key
+    -- the open stream is never hidden in a folded section
+    local s = KC:Stream(key)
+    if s and s.sec then KC.db.settings.collapsed[s.sec] = false end
     self.atBottom = true
     self.newBelow = 0
     KC:MarkRead(key)
@@ -912,8 +1558,12 @@ end
 
 function UI:ShowMenu(anchor, entries)
     if not self.menu then
-        local m = CreateFrame("Frame", nil, self.frame)
-        m:SetFrameStrata("DIALOG")
+        -- The menu hangs off UIParent on a layer above the click-catcher. As a
+        -- child of the chat window it was re-layered whenever the window came
+        -- to the front, ended up under the catcher, and every click closed the
+        -- menu instead of choosing an entry.
+        local m = CreateFrame("Frame", "KrakenChatMenu", UIParent)
+        m:SetFrameStrata("FULLSCREEN_DIALOG")
         m:SetClampedToScreen(true)
         m:EnableMouse(true)
         Solid(m, "BACKGROUND", { 0.035, 0.04, 0.055, 0.98 }):SetAllPoints()
@@ -928,11 +1578,12 @@ function UI:ShowMenu(anchor, entries)
         catcher:Hide()
         m:SetScript("OnShow", function() catcher:Show() end)
         m:SetScript("OnHide", function() catcher:Hide() end)
-        m:SetFrameLevel(catcher:GetFrameLevel() + 5)
         m:Hide()
+        if UISpecialFrames then table.insert(UISpecialFrames, "KrakenChatMenu") end -- Escape closes it
         self.menu = m
     end
     local m = self.menu
+    m:Raise()
     for _, b in ipairs(m.buttons) do b:Hide() end
     local y = 6
     for i, e in ipairs(entries) do
@@ -987,13 +1638,14 @@ function UI:StreamMenu(anchor, key)
     local muted, folds = KC:IsMuted(key), KC:Folds(s)
     local entries = {
         { header = s.label },
-        { text = muted and "Show in All messages" or "Hide in All messages", func = function()
-            settings.muted[key] = not muted or nil
+        { text = muted and 'Show in "All messages"' or 'Hide in "All messages"', func = function()
+            settings.muted[key] = not muted
             UI:RenderSidebar()
             UI:RenderFeed()
         end },
-        { text = folds and "Don't fold in All messages" or "Fold in All messages", func = function()
+        { text = folds and 'Don\'t fold in "All messages"' or 'Fold in "All messages"', func = function()
             settings.fold[key] = not folds
+            UI:RenderSidebar()
             UI:RenderFeed()
         end },
     }
@@ -1016,6 +1668,11 @@ function UI:MessageMenu(anchor, entry)
         entries[#entries + 1] = { text = "Whisper " .. m.a, func = function()
             if s.sec == "conv" then UI:Reply(s.key) else whisper(m.a) end
         end }
+        local who = (s.sec == "conv" and s.who) or m.p
+        local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
+        if who and invite then
+            entries[#entries + 1] = { text = "Invite to group", func = function() pcall(invite, who) end }
+        end
     end
     if KC.db.settings.view == "all" then
         entries[#entries + 1] = { text = "Open " .. s.label, func = function() UI:Select(s.key) end }
@@ -1116,7 +1773,18 @@ local function inView(s)
     return view == s.key or (view == "all" and not KC:IsMuted(s.key))
 end
 
-KC:Listen("MESSAGE", function(_, s, isRepeat)
+KC:Listen("MESSAGE", function(m, s, isRepeat)
+    -- a whisper brings the chat back, closed or folded in, open on its conversation
+    local settings = KC.db.settings
+    if s.sec == "conv" and not m.o and not isRepeat and settings.openOnWhisper and not KC.demoing then
+        local closed = not (UI.frame and UI.frame:IsShown())
+        if closed or settings.chatCollapsed then
+            UI:Show()
+            UI:Select(s.key)
+            if settings.chatCollapsed then UI:ToggleChat() end
+            return
+        end
+    end
     if not inView(s) then
         UI:Request("side")
         return
