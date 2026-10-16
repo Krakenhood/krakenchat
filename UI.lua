@@ -670,7 +670,7 @@ function UI:CreateContent(f)
     chatToggle:SetScript("OnClick", function() UI:ToggleChat() end)
     self.chatToggle = chatToggle
 
-    self:CreateSearch(f, chatToggle)
+    self:CreateSearch(f, chatToggle, title)
 
     local headLine = Solid(f, "ARTWORK", Theme.line)
     headLine:SetHeight(1)
@@ -749,8 +749,6 @@ function UI:CreateContent(f)
     footer.edge:SetWidth(2)
     footer.text = Text(footer, 11, Theme.dim)
     footer.text:SetPoint("LEFT", 10, 0)
-    footer.hint = Text(footer, 10, Theme.dim, "RIGHT")
-    footer.hint:SetPoint("RIGHT", -8, 0)
     footer:SetScript("OnEnter", function(self) self.text:SetTextColor(rgb(Theme.text)) end)
     footer:SetScript("OnLeave", function(self) self.text:SetTextColor(rgb(Theme.dim)) end)
     footer:SetScript("OnClick", function() UI:Reply(KC.db.settings.view) end)
@@ -801,6 +799,31 @@ function UI:CreateRail(f)
     toggle:SetScript("OnClick", function() UI:ToggleSide() end)
     self.sideToggle = toggle
 
+    -- names or symbols in the sidebar
+    local mode = CreateFrame("Button", nil, f)
+    mode:SetSize(18, 18)
+    mode:SetPoint("LEFT", toggle, "RIGHT", 0, 0)
+    mode.icon = mode:CreateTexture(nil, "ARTWORK")
+    mode.icon:SetSize(14, 14)
+    mode.icon:SetPoint("CENTER")
+    mode.text = Text(mode, 11, Theme.dim, "CENTER")
+    mode.text:SetPoint("CENTER", 0, 0)
+    mode.text:SetText("Aa")
+    mode:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(KC:Look().symbols and "Show names" or "Show symbols", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    mode:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    mode:SetScript("OnClick", function()
+        local settings = KC.db.settings
+        settings.sidebar = settings.sidebar == "text" and "symbols" or "text"
+        UI:ApplyChat()
+        UI:RenderSidebar()
+        UI:RenderFeed()
+    end)
+    self.modeToggle = mode
+
     -- while folded in: unread messages, click to fold out
     local badge = CreateFrame("Button", nil, f)
     badge:SetSize(22, 16)
@@ -827,6 +850,12 @@ function UI:ApplySide()
     self.footer:SetPoint("BOTTOMLEFT", w + PAD + 1, 6)
     self.sideToggle.arrow.Point(collapsed and "right" or "left")
     self.sideToggle:SetShown(not KC.db.settings.chatCollapsed)
+    -- the names/symbols switch shows the other choice
+    local symbols = KC:Look().symbols
+    self.modeToggle:SetShown(not collapsed)
+    self.modeToggle.text:SetShown(symbols)
+    self.modeToggle.icon:SetShown(not symbols)
+    if not symbols then UI.SetSymbol(self.modeToggle.icon, KC:Stream("guild") or nil) end
     self:UpdateRail()
 end
 
@@ -835,7 +864,7 @@ end
 -- unread badges, like a buddy list. Clicking a stream opens the chat on it.
 --------------------------------------------------------------------------------
 
-local CHAT_PARTS = { "scroll", "track", "thumb", "empty", "footer", "search", "viewTitle" }
+local CHAT_PARTS = { "scroll", "track", "thumb", "empty", "footer" }
 
 function UI:ApplyChat()
     local f, folded = self.frame, KC.db.settings.chatCollapsed and true or false
@@ -844,6 +873,10 @@ function UI:ApplyChat()
     for _, key in ipairs(CHAT_PARTS) do self[key]:SetShown(not folded) end
     if folded then
         self.pill:Hide()
+        if self.search:IsShown() then
+            self.search:SetText("")
+            self.search:Hide()
+        end
         if f.SetResizeBounds then f:SetResizeBounds(narrow, MIN_H, narrow, 2000) end
         f:SetWidth(narrow)
     else
@@ -854,6 +887,7 @@ function UI:ApplyChat()
     -- folded with symbols, the window is only a column wide: no room for the title
     self.title:SetShown(not (folded and KC:Look().symbols))
     self:ApplySide()
+    self:RefreshHeader()
 end
 
 function UI:ToggleChat()
@@ -891,10 +925,42 @@ function UI:ToggleSide()
     self:RenderFeed()
 end
 
-function UI:CreateSearch(f, close)
+-- A magnifier in the header; the search box only shows while you search.
+function UI:CreateSearch(f, anchor, title)
+    local glass = CreateFrame("Button", nil, f)
+    glass:SetSize(18, 18)
+    glass:SetPoint("RIGHT", anchor, "LEFT", -4, 0)
+    glass.icon = glass:CreateTexture(nil, "ARTWORK")
+    glass.icon:SetSize(13, 13)
+    glass.icon:SetPoint("CENTER")
+    glass.icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+    glass.icon:SetVertexColor(rgb(Theme.dim))
+    glass:SetScript("OnEnter", function(self)
+        self.icon:SetVertexColor(rgb(Theme.text))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Search", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    glass:SetScript("OnLeave", function(self)
+        self.icon:SetVertexColor(rgb(Theme.dim))
+        GameTooltip:Hide()
+    end)
+    self.glass = glass
+
     local box = CreateFrame("EditBox", nil, f)
-    box:SetSize(170, 20)
-    box:SetPoint("RIGHT", close, "LEFT", -10, 0)
+    box:SetHeight(20)
+    box:SetPoint("RIGHT", glass, "LEFT", -4, 0)
+    box:SetPoint("LEFT", title, "RIGHT", 10, 0)
+    box:Hide()
+    glass:SetScript("OnClick", function()
+        if box:IsShown() and (box:GetText() or "") == "" then
+            box:Hide()
+        else
+            box:Show()
+            box:SetFocus()
+        end
+        UI:RefreshHeader()
+    end)
     box:SetAutoFocus(false)
     box:SetFont(FONT, 11, "")
     box:SetTextColor(rgb(Theme.text))
@@ -919,10 +985,21 @@ function UI:CreateSearch(f, close)
     end)
     clear:Hide()
 
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
     box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     box:SetScript("OnEditFocusGained", function() box.placeholder:Hide() end)
-    box:SetScript("OnEditFocusLost", function(self) box.placeholder:SetShown((self:GetText() or "") == "") end)
+    box:SetScript("OnEditFocusLost", function(self)
+        -- an empty search folds back into the magnifier
+        if (self:GetText() or "") == "" then
+            self:Hide()
+            UI:RefreshHeader()
+        else
+            box.placeholder:Hide()
+        end
+    end)
     box:SetScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
         clear:SetShown(text ~= "")
@@ -1129,12 +1206,14 @@ function UI:RefreshHeader()
     local name = view == "all" and "All messages" or (s and s.label) or ""
     if KC:IsMuted(view) then name = name .. " (hidden in All messages)" end
     self.viewTitle:SetText(name)
+    -- with names in the sidebar the open stream is plain to see; with symbols
+    -- its name goes in the header (unless the search box is there)
+    local folded = KC.db.settings.chatCollapsed
+    self.viewTitle:SetShown(not folded and KC:Look().symbols and not self.search:IsShown())
+    self.glass:SetShown(not folded)
     local reply = self:ReplyText(view)
-    self.footer:SetShown(reply ~= nil)
-    if reply then
-        self.footer.text:SetText(reply)
-        self.footer.hint:SetText("opens the chat input")
-    end
+    self.footer:SetShown(reply ~= nil and not folded)
+    if reply then self.footer.text:SetText(reply) end
 end
 
 --------------------------------------------------------------------------------
@@ -1296,11 +1375,11 @@ function UI:RenderSymbols()
     child:SetHeight(y + 6)
 end
 
--- Switching themes opens the chat, so the new look shows in full.
-function UI:SetTheme(n)
+-- Switching the look opens the chat, so it shows in full.
+function UI:SetLook(style, sidebar)
     local settings = KC.db.settings
     if settings.chatCollapsed then self:SaveGeometry() end
-    settings.theme = n
+    settings.style, settings.sidebar = style, sidebar
     settings.chatCollapsed = false
     if not self.frame:IsShown() then self.frame:Show() end
     self:ApplyChat()
@@ -1530,7 +1609,15 @@ local function inView(s)
     return view == s.key or (view == "all" and not KC:IsMuted(s.key))
 end
 
-KC:Listen("MESSAGE", function(_, s, isRepeat)
+KC:Listen("MESSAGE", function(m, s, isRepeat)
+    -- a whisper unfolds the folded-in chat on its conversation
+    local settings = KC.db.settings
+    if s.sec == "conv" and not m.o and not isRepeat and settings.chatCollapsed and settings.openOnWhisper
+        and UI.frame and UI.frame:IsShown() then
+        UI:Select(s.key)
+        UI:ToggleChat()
+        return
+    end
     if not inView(s) then
         UI:Request("side")
         return

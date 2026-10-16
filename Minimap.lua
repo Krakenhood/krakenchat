@@ -59,6 +59,11 @@ local function createButton()
     icon:SetPoint("TOPLEFT", 7, -6)
     icon:SetTexture("Interface\\Icons\\INV_Letter_15")
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    -- round like the other minimap buttons
+    local mask = button:CreateMaskTexture()
+    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(icon)
+    icon:AddMaskTexture(mask)
 
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetSize(53, 53)

@@ -184,7 +184,9 @@ local DEFAULTS = {
         sideCollapsed = nil,   -- true: the whole sidebar is folded into a slim rail
         chatCollapsed = true,  -- the chat is folded in, the window shows only the stream list
         hideBlizzard = true,   -- the game's own chat windows are hidden
-        theme = 1,             -- see KC.Themes
+        style = "wow",         -- "wow" or "flat", see KC.Themes
+        sidebar = "text",      -- "text", "symbols" or "round"
+        openOnWhisper = true,  -- a whisper unfolds the chat while it's folded in
         muted = {},            -- stream key -> true: left out of "All messages"
         fold = {},             -- stream key -> true/false: overrides the default folding in "All messages"
         minimap = { angle = 225, hide = false },
@@ -197,6 +199,12 @@ local CHAR_DEFAULTS = { streams = {}, nextId = 1 }
 function KC:LoadDB()
     if type(KrakenChatDB) ~= "table" then KrakenChatDB = {} end
     if type(KrakenChatCharDB) ~= "table" then KrakenChatCharDB = {} end
+    -- 0.1 kept a theme number; it becomes a style and a sidebar
+    local old = type(KrakenChatDB.settings) == "table" and KrakenChatDB.settings
+    if old and old.theme and not old.style then
+        local t = KC.Themes[old.theme] or KC.Themes[1]
+        old.style, old.sidebar, old.theme = t.style, t.sidebar, nil
+    end
     self.db = fill(KrakenChatDB, DEFAULTS)
     self.char = fill(KrakenChatCharDB, CHAR_DEFAULTS)
     for key, s in pairs(self.char.streams) do
@@ -258,7 +266,10 @@ local HELP = {
     "|cff4fd1c5/kc font <10-18>|r: text size of the feed",
     "|cff4fd1c5/kc side|r: fold the stream list in or out",
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
-    "|cff4fd1c5/kc theme <1-5>|r: switch the look (1 names, 2 symbols, 3 round, 4 WoW style, 5 WoW style + symbols)",
+    "|cff4fd1c5/kc symbols|r: sidebar as symbols or names (|cff4fd1c5/kc symbols round|r for round ones)",
+    "|cff4fd1c5/kc style|r: WoW style or the flat teal look",
+    "|cff4fd1c5/kc theme <1-5>|r: both at once, to compare (1 teal names, 2 teal symbols, 3 teal round, 4 WoW names, 5 WoW symbols)",
+    "|cff4fd1c5/kc whisperopen|r: whether a whisper unfolds the folded-in chat",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",
@@ -289,17 +300,27 @@ function KC:Slash(input)
         self.UI:Create()
         if not self.UI.frame:IsShown() then self.UI:Show() end
         self.UI:ToggleChat()
-    elseif cmd == "theme" or cmd == "symbols" or cmd == "symbol" then
-        local n = tonumber(rest)
-        if cmd ~= "theme" then n = (settings.theme or 1) == 1 and 2 or 1 end
-        if not (n and KC.Themes[n]) then
-            self:Print("themes (you have " .. (settings.theme or 1) .. "):")
-            for i, t in ipairs(KC.Themes) do DEFAULT_CHAT_FRAME:AddMessage(("   |cff4fd1c5/kc theme %d|r: %s, %s"):format(i, t.name, t.note)) end
+    elseif cmd == "theme" then
+        local t = KC.Themes[tonumber(rest) or 0]
+        if not t then
+            self:Print("themes:")
+            for i, th in ipairs(KC.Themes) do DEFAULT_CHAT_FRAME:AddMessage(("   |cff4fd1c5/kc theme %d|r: %s, %s"):format(i, th.name, th.note)) end
             return
         end
         self.UI:Create()
-        self.UI:SetTheme(n)
-        self:Printf("Theme %d: %s.", n, KC.Themes[n].name)
+        self.UI:SetLook(t.style, t.sidebar)
+        self:Printf("Theme %s: %s.", rest, t.name)
+    elseif cmd == "symbols" or cmd == "symbol" or cmd == "text" then
+        self.UI:Create()
+        local sidebar = (cmd == "text" and "text") or (rest == "round" and "round") or (settings.sidebar == "text" and "symbols" or "text")
+        self.UI:SetLook(settings.style, sidebar)
+        self:Print(sidebar == "text" and "Sidebar: names." or "Sidebar: symbols (names are in the tooltips).")
+    elseif cmd == "style" then
+        self.UI:Create()
+        self.UI:SetLook(settings.style == "flat" and "wow" or "flat", settings.sidebar)
+    elseif cmd == "whisperopen" then
+        settings.openOnWhisper = not settings.openOnWhisper
+        self:Print("A whisper " .. (settings.openOnWhisper and "unfolds the chat." or "no longer unfolds the chat."))
     elseif cmd == "blizzard" then
         settings.hideBlizzard = not settings.hideBlizzard
         self.Blizzard:Apply()

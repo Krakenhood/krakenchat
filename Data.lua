@@ -119,15 +119,19 @@ KC.Events = {
 }
 
 --------------------------------------------------------------------------------
--- Themes (/kc theme <n>): layouts to compare side by side.
+-- The look has two parts:
+--   style:   "wow" (gold border, dark stone; the default) or "flat" (teal, the
+--            first draft)
+--   sidebar: "text" (streams by name), "symbols" (square icons) or "round"
+-- /kc theme <n> sets both at once, for comparing.
 --------------------------------------------------------------------------------
 
 KC.Themes = {
-    { name = "Names", note = "the first draft: streams listed by name" },
-    { name = "Symbols", note = "a slim column of square symbols, names in the tooltips", symbols = true },
-    { name = "Round symbols", note = "the same with round symbols", symbols = true, round = true },
-    { name = "Azeroth", note = "a WoW-style frame (gold border, dark stone), streams by name", palette = "wow" },
-    { name = "Azeroth symbols", note = "the WoW-style frame with square symbols", palette = "wow", symbols = true },
+    { name = "Names", note = "the first draft: teal, streams listed by name", style = "flat", sidebar = "text" },
+    { name = "Symbols", note = "teal, a slim column of square symbols", style = "flat", sidebar = "symbols" },
+    { name = "Round symbols", note = "teal, round symbols", style = "flat", sidebar = "round" },
+    { name = "Azeroth", note = "WoW style (gold border, dark stone), streams by name", style = "wow", sidebar = "text" },
+    { name = "Azeroth symbols", note = "WoW style with square symbols", style = "wow", sidebar = "symbols" },
 }
 
 -- Colours that replace KC.Theme for a theme with a `palette` (applied at load,
@@ -149,7 +153,12 @@ KC.Palettes = {
 }
 
 function KC:Look()
-    return KC.Themes[self.db.settings.theme] or KC.Themes[1]
+    local s = self.db.settings
+    return {
+        palette = s.style ~= "flat" and "wow" or nil,
+        symbols = s.sidebar == "symbols" or s.sidebar == "round",
+        round = s.sidebar == "round",
+    }
 end
 
 --------------------------------------------------------------------------------
