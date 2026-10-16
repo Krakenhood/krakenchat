@@ -6,7 +6,8 @@ local call = KC.call
 local UI = { expanded = {}, atBottom = true, newBelow = 0 }
 KC.UI = UI
 
-local DEFAULT_W, DEFAULT_H = 520, 260
+local DEFAULT_W, DEFAULT_H = 540, 330
+local DEFAULT_X, DEFAULT_Y = 40, 44 -- bottom left, with room below for the chat input
 local MIN_W, MIN_H = 360, 140
 local HEADER = 34
 local SIDE_W = 156
@@ -575,7 +576,7 @@ function UI:ResetPosition()
     if not self.frame then return end
     KC.db.settings.window = {}
     self.frame:ClearAllPoints()
-    self.frame:SetPoint("CENTER")
+    self.frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DEFAULT_X, DEFAULT_Y)
     KC.db.settings.chatCollapsed = false
     self.frame:SetSize(DEFAULT_W, DEFAULT_H)
     self:ApplyChat()
@@ -594,7 +595,7 @@ function UI:Create()
     if win.point then
         f:SetPoint(win.point, UIParent, win.relPoint or win.point, win.x or 0, win.y or 0)
     else
-        f:SetPoint("BOTTOMLEFT", 40, 140)
+        f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DEFAULT_X, DEFAULT_Y)
     end
     f:SetFrameStrata("MEDIUM")
     f:SetToplevel(true)

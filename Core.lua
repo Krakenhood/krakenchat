@@ -275,7 +275,7 @@ local HELP = {
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",
-    "|cff4fd1c5/kc resetwindow|r: move the window back to the middle of the screen",
+    "|cff4fd1c5/kc resetwindow|r: window back to the bottom left at its default size",
     "|cff4fd1c5/kc clear|r: erase this character's chat history",
 }
 

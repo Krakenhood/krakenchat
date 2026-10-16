@@ -43,7 +43,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc blizzard` | Hide or show the game's own chat window |
 | `/kc minimap` | Show or hide the minimap button |
 | `/kc demo` | Add or remove sample messages |
-| `/kc resetwindow` | Window back to the middle of the screen at its default size (also a button in the settings) |
+| `/kc resetwindow` | Window back to the bottom left at its default size (also a button in the settings) |
 | `/kc clear` | Erase this character's chat history (asks first) |
 
 ## How it works
