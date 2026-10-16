@@ -14,3 +14,4 @@ Capture.lua
 Feed.lua
 UI.lua
 Minimap.lua
+Blizzard.lua

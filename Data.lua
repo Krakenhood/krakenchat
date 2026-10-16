@@ -47,6 +47,8 @@ KC.Fixed = {
     loot     = { label = "Loot & gold", tag = "Loot", sec = "game", order = 3, cap = 200, fold = true },
     progress = { label = "XP & reputation", tag = "Progress", sec = "game", order = 4, cap = 150, fold = true },
     achieve  = { label = "Achievements", tag = "Achievement", sec = "game", order = 5, cap = 100 },
+    crafting = { label = "Crafting", tag = "Crafting", sec = "game", order = 5, cap = 150, fold = true },
+    addons   = { label = "Addon messages", tag = "Addon", sec = "game", order = 6, cap = 150 },
 }
 
 KC.WhisperCap = 300
@@ -105,7 +107,7 @@ KC.Events = {
     COMBAT_FACTION_CHANGE = { stream = "progress", form = "plain" },
     COMBAT_HONOR_GAIN = { stream = "progress", form = "plain" },
     SKILL = { stream = "progress", form = "plain" },
-    TRADESKILLS = { stream = "progress", form = "plain" },
+    TRADESKILLS = { stream = "crafting", form = "plain" },
     ACHIEVEMENT = { stream = "achieve", form = "plain" },
     GUILD_ACHIEVEMENT = { stream = "achieve", form = "plain" },
     MONSTER_SAY = { stream = "npc", form = "talk" },

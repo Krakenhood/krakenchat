@@ -182,7 +182,8 @@ local DEFAULTS = {
         view = "all",          -- the stream shown in the feed
         collapsed = {},        -- sidebar sections folded shut
         sideCollapsed = nil,   -- true: the whole sidebar is folded into a slim rail
-        chatCollapsed = nil,   -- true: the chat is folded in, the window shows only the stream list
+        chatCollapsed = true,  -- the chat is folded in, the window shows only the stream list
+        hideBlizzard = true,   -- the game's own chat windows are hidden
         muted = {},            -- stream key -> true: left out of "All messages"
         fold = {},             -- stream key -> true/false: overrides the default folding in "All messages"
         minimap = { angle = 225, hide = false },
@@ -243,6 +244,7 @@ local HELP = {
     "|cff4fd1c5/kc font <10-18>|r: text size of the feed",
     "|cff4fd1c5/kc side|r: fold the stream list in or out",
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
+    "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",
     "|cff4fd1c5/kc resetwindow|r: move the window back to the middle of the screen",
@@ -272,6 +274,10 @@ function KC:Slash(input)
         self.UI:Create()
         if not self.UI.frame:IsShown() then self.UI:Show() end
         self.UI:ToggleChat()
+    elseif cmd == "blizzard" then
+        settings.hideBlizzard = not settings.hideBlizzard
+        self.Blizzard:Apply()
+        self:Print("The game's chat window is " .. (settings.hideBlizzard and "hidden." or "shown again."))
     elseif cmd == "minimap" then
         settings.minimap.hide = not settings.minimap.hide
         self:Fire("SETTINGS")

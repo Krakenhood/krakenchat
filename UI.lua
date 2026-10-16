@@ -6,8 +6,8 @@ local call = KC.call
 local UI = { expanded = {}, atBottom = true, newBelow = 0 }
 KC.UI = UI
 
-local DEFAULT_W, DEFAULT_H = 640, 400
-local MIN_W, MIN_H = 420, 220
+local DEFAULT_W, DEFAULT_H = 520, 260
+local MIN_W, MIN_H = 360, 140
 local HEADER = 34
 local SIDE_W = 156
 local RAIL_W = 30 -- the sidebar folded in
@@ -410,7 +410,7 @@ function UI:ResetPosition()
     if not self.frame then return end
     self.frame:ClearAllPoints()
     self.frame:SetPoint("CENTER")
-    KC.db.settings.chatCollapsed = nil
+    KC.db.settings.chatCollapsed = false
     self.frame:SetSize(DEFAULT_W, DEFAULT_H)
     self:ApplyChat()
     self:SaveGeometry()
@@ -450,7 +450,10 @@ function UI:Create()
         KC.db.settings.shown = false
         if UI.menu then UI.menu:Hide() end
     end)
-    f:SetScript("OnSizeChanged", function() UI:Request("feed") end)
+    f:SetScript("OnSizeChanged", function()
+        UI:Request("feed")
+        KC:Fire("GEOMETRY")
+    end)
 
     -- backdrop: deep panel, faint teal glow at the top, teal-to-violet rim
     Solid(f, "BACKGROUND", Theme.bg):SetAllPoints()
@@ -685,7 +688,7 @@ end
 function UI:ToggleChat()
     local settings = KC.db.settings
     if not settings.chatCollapsed then self:SaveGeometry() end -- the width to come back to
-    settings.chatCollapsed = not settings.chatCollapsed or nil
+    settings.chatCollapsed = not settings.chatCollapsed
     self:ApplyChat()
     self:SaveGeometry()
     if not settings.chatCollapsed then

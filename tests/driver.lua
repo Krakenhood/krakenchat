@@ -30,6 +30,23 @@ check(#KC.missingEvents == 0, "all events registered: " .. table.concat(KC.missi
 check(KrakenChatFrame and KrakenChatFrame:IsShown(), "window opens at login")
 check(KC.db.settings.shown == true, "window remembered as open")
 check(KC.db.settings.view == "all", "starts on All messages")
+check(KC.db.settings.chatCollapsed == true and KrakenChatFrame:GetWidth() < 200, "a new window starts small, folded to the stream list")
+check(KC.Blizzard.active and ChatFrame1:GetParent() ~= UIParent and ChatFrame2Tab:GetParent() ~= UIParent, "the game's chat windows and tabs are hidden")
+check(GeneralDockManager:GetParent() ~= UIParent, "the chat buttons are hidden")
+check(ChatFrame1EditBox:GetParent() == UIParent, "the chat input stays usable")
+KC.UI:ToggleChat()
+check(KC.db.settings.chatCollapsed == false and KrakenChatFrame:GetWidth() >= 360, "the chat folds out")
+DEFAULT_CHAT_FRAME:AddMessage("Krakenfriends: journey saved")
+DEFAULT_CHAT_FRAME:AddMessage("Thalianne says hi", 1, 1, 1, 7)
+check(S("addons") and #S("addons").msgs == 1 and S("addons").msgs[1].x == "Krakenfriends: journey saved", "printed lines from addons land in Addon messages, chat lines don't")
+SlashCmdList.KRAKENCHAT("blizzard")
+check(not KC.Blizzard.active and ChatFrame1:GetParent() == UIParent and ChatFrame1EditBox:GetParent() == ChatFrame1, "/kc blizzard brings the game's chat back")
+check(KC.db.settings.hideBlizzard == false, "and remembers it")
+DEFAULT_CHAT_FRAME:AddMessage("not copied")
+check(#S("addons").msgs == 1, "prints aren't copied while the game's chat is visible")
+SlashCmdList.KRAKENCHAT("blizzard")
+check(KC.Blizzard.active and ChatFrame1:GetParent() ~= UIParent, "and hides it again")
+KC:CloseStream("addons")
 
 section("whispers")
 PLAYERS["Player-1-E"] = "PRIEST"
@@ -303,7 +320,8 @@ demoCount = 0
 for _, s in pairs(KC.char.streams) do for _, m in ipairs(s.msgs) do if m.demo then demoCount = demoCount + 1 end end end
 check(demoCount == 0, "demo removed again")
 KC:ClearHistory()
-check(next(KC.char.streams) == nil, "history cleared")
+check(next(KC.char.streams) == "addons" and next(KC.char.streams, "addons") == nil, "history cleared (only the note about it is left)")
+KC:CloseStream("addons")
 KC.UI:RenderFeed()
 check(KC.UI.empty:IsShown(), "empty feed shows a hint")
 

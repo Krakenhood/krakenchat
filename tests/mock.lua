@@ -71,6 +71,7 @@ function Object:UnregisterEvent(e) self._events[e] = nil end
 function Object:CreateTexture() return new("Texture", self) end
 function Object:CreateFontString() local fs = new("FontString", self); rawset(fs, "_text", ""); return fs end
 function Object:GetParent() return self._parent end
+function Object:SetParent(p) rawset(self, "_parent", p) end
 function Object:SetText(t)
     if issecretvalue(t) then rawset(self, "_text", "<secret>"); rawset(self, "_secret", true); return end
     rawset(self, "_text", t); rawset(self, "_secret", false)
@@ -157,6 +158,18 @@ function ChatFrame_SendBNetTell(name) OPENED[#OPENED + 1] = { bn = name } end
 function GetChannelName(name) if name == "Trade" then return 2 end return 0 end
 LINKS = {}
 function SetItemRef(link) LINKS[#LINKS + 1] = link end
+
+NUM_CHAT_WINDOWS = 3
+for i = 1, 3 do
+    local cf = CreateFrame("Frame", "ChatFrame" .. i, UIParent)
+    CreateFrame("Button", "ChatFrame" .. i .. "Tab", UIParent)
+end
+ChatFrame1EditBox = CreateFrame("EditBox", "ChatFrame1EditBox", ChatFrame1)
+GeneralDockManager = CreateFrame("Frame", "GeneralDockManager", UIParent)
+function hooksecurefunc(t, name, fn)
+    local orig = t[name]
+    t[name] = function(...) local r = orig(...); fn(...); return r end
+end
 
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 

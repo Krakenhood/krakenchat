@@ -14,6 +14,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **Clickable everything**: names whisper that person, item links show tooltips, web addresses open a copy box. Right-click a message to copy it.
 - **History**: messages are kept per character and survive `/reload` and logging out.
 - **Replying**: the bar at the bottom opens the game's own chat input, already set to that stream (`/w Name`, `/p`, `/g`, `/2`, ...).
+- **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
 - **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a dot for unread whispers, and a key binding.
 
 ## Install
@@ -29,6 +30,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc font <10-18>` | Text size of the feed |
 | `/kc compact` | Fold the chat in, keeping only the stream list |
 | `/kc side` | Fold the stream list in or out |
+| `/kc blizzard` | Hide or show the game's own chat window |
 | `/kc minimap` | Show or hide the minimap button |
 | `/kc demo` | Add or remove sample messages |
 | `/kc resetwindow` | Move the window back to the middle of the screen |
@@ -43,6 +45,6 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 
 ## Good to know
 
-- **The game's chat window stays.** KrakenChat reads the chat; it doesn't replace or hide the default window. Writing still goes through the game's own input box, which keeps slash commands, shift-click links and chat history working.
+- **Writing goes through the game's own chat input.** That keeps slash commands, shift-click links and chat history working; it sits under the KrakenChat window while the game's chat window is hidden.
 - **Secret messages.** In Forever (as in Midnight) the game can hand addons chat text as a "secret" value, for example inside instances during an encounter. KrakenChat shows those lines, but can't search, fold, link or save them.
 - **Untested at scale.** Verified with a headless test suite (`tests/`, run `npm test` in that folder). Busy capitals with very active channels haven't been measured yet. Bug reports are welcome in the issue tracker.
