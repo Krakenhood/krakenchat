@@ -30,6 +30,7 @@ check(#KC.missingEvents == 0, "all events registered: " .. table.concat(KC.missi
 check(KrakenChatFrame and KrakenChatFrame:IsShown(), "window opens at login")
 check(KC.db.settings.shown == true, "window remembered as open")
 check(KC.db.settings.view == "all", "starts on All messages")
+check(KC.db.settings.collapsed.channels and KC.db.settings.collapsed.game and KC.db.settings.collapsed.near and not KC.db.settings.collapsed.conv, "busy sections start folded, conversations open")
 check(KC.db.settings.chatCollapsed == true and KrakenChatFrame:GetWidth() < 200, "a new window starts small, folded to the stream list")
 check(KC.Blizzard.active and ChatFrame1:GetParent() ~= UIParent and ChatFrame2Tab:GetParent() ~= UIParent, "the game's chat windows and tabs are hidden")
 check(GeneralDockManager:GetParent() ~= UIParent, "the chat buttons are hidden")
@@ -353,6 +354,12 @@ KC.UI.search._scripts.OnEscapePressed(KC.UI.search)
 KC.UI.search._scripts.OnTextChanged(KC.UI.search)
 KC.UI.search._scripts.OnEditFocusLost(KC.UI.search)
 check(not KC.UI.search:IsShown() and KC.UI.query == "", "Escape clears and closes it")
+
+section("opening a stream opens its section")
+KC.db.settings.collapsed.channels = true
+KC.UI:Select("ch:trade")
+check(not KC.db.settings.collapsed.channels, "the Channels section opens with Trade")
+KC.UI:Select("all")
 
 section("a whisper unfolds the chat")
 KC.UI:Select("all")

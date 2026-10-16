@@ -1392,6 +1392,9 @@ end
 
 function UI:Select(key)
     KC.db.settings.view = key
+    -- the open stream is never hidden in a folded section
+    local s = KC:Stream(key)
+    if s and s.sec then KC.db.settings.collapsed[s.sec] = nil end
     self.atBottom = true
     self.newBelow = 0
     KC:MarkRead(key)

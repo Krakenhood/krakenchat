@@ -180,7 +180,7 @@ local DEFAULTS = {
         fontSize = 12,
         sort = "recent",       -- conversations: "recent" or "name"
         view = "all",          -- the stream shown in the feed
-        collapsed = {},        -- sidebar sections folded shut
+        collapsed = { near = true, channels = true, game = true }, -- sidebar sections folded shut: the busy ones
         sideCollapsed = nil,   -- true: the whole sidebar is folded into a slim rail
         chatCollapsed = true,  -- the chat is folded in, the window shows only the stream list
         hideBlizzard = true,   -- the game's own chat windows are hidden
