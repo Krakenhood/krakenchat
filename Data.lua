@@ -185,8 +185,8 @@ KC.Symbols = {
     guild    = { I .. "INV_Shirt_GuildTabard_01", I .. "INV_Misc_TabardPVP_01", I .. "INV_Banner_02" },
     officer  = { I .. "INV_Crown_01", I .. "INV_Helmet_25" },
     say      = { "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up", I .. "INV_Misc_Note_04" },
-    yell     = { I .. "Ability_Warrior_BattleShout", I .. "Ability_Warrior_RallyingCry" },
-    emote    = { I .. "Ability_Rogue_Disguise", I .. "Spell_Shadow_Charm" },
+    yell     = { "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up", I .. "Ability_Warrior_BattleShout" },
+    emote    = { "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up", I .. "Ability_Rogue_Disguise" },
     npc      = { I .. "INV_Misc_Head_Orc_01", I .. "INV_Misc_Head_Human_01" },
     system   = { I .. "INV_Misc_Gear_01", I .. "Trade_Engineering" },
     loot     = { I .. "INV_Misc_Bag_08", I .. "INV_Misc_Coin_01" },
@@ -198,6 +198,13 @@ KC.Symbols = {
     bnet     = { "Interface\\FriendsFrame\\Battlenet-Battleneticon", I .. "INV_Letter_02" },
     channel  = { I .. "INV_Misc_Note_01", I .. "INV_Scroll_03" },
     unknown  = { I .. "INV_Misc_QuestionMark" },
+}
+
+-- Say, Yell and Emotes share the game's speech bubble, coloured like their
+-- chat lines (the player's own chat colours when the game has them).
+KC.SymbolTints = {
+    yell = { type = "YELL", r = 1, g = 0.25, b = 0.25 },
+    emote = { type = "EMOTE", r = 1, g = 0.5, b = 0.25 },
 }
 
 -- Channels by a word in their name (lower case), first match wins: "Trade

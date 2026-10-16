@@ -173,6 +173,7 @@ function UI.SetSymbol(tex, s)
         local c = CLASS_ICON_TCOORDS[s.class]
         tex:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
         tex:SetTexCoord(c[1], c[2], c[3], c[4])
+        tex:SetVertexColor(1, 1, 1)
         return
     end
     local list
@@ -188,6 +189,13 @@ function UI.SetSymbol(tex, s)
         list = KC.Symbols[s.key] or KC.Symbols.unknown
     end
     if not setFile(tex, list) then setFile(tex, KC.Symbols.unknown) end
+    local tint = s and KC.SymbolTints[s.key]
+    if tint then
+        local info = ChatTypeInfo and ChatTypeInfo[tint.type]
+        if info and info.r then tex:SetVertexColor(info.r, info.g, info.b) else tex:SetVertexColor(tint.r, tint.g, tint.b) end
+    else
+        tex:SetVertexColor(1, 1, 1)
+    end
 end
 
 --------------------------------------------------------------------------------
