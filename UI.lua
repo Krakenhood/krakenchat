@@ -1515,8 +1515,12 @@ end
 
 function UI:ShowMenu(anchor, entries)
     if not self.menu then
-        local m = CreateFrame("Frame", nil, self.frame)
-        m:SetFrameStrata("DIALOG")
+        -- The menu hangs off UIParent on a layer above the click-catcher. As a
+        -- child of the chat window it was re-layered whenever the window came
+        -- to the front, ended up under the catcher, and every click closed the
+        -- menu instead of choosing an entry.
+        local m = CreateFrame("Frame", "KrakenChatMenu", UIParent)
+        m:SetFrameStrata("FULLSCREEN_DIALOG")
         m:SetClampedToScreen(true)
         m:EnableMouse(true)
         Solid(m, "BACKGROUND", { 0.035, 0.04, 0.055, 0.98 }):SetAllPoints()
@@ -1531,11 +1535,12 @@ function UI:ShowMenu(anchor, entries)
         catcher:Hide()
         m:SetScript("OnShow", function() catcher:Show() end)
         m:SetScript("OnHide", function() catcher:Hide() end)
-        m:SetFrameLevel(catcher:GetFrameLevel() + 5)
         m:Hide()
+        if UISpecialFrames then table.insert(UISpecialFrames, "KrakenChatMenu") end -- Escape closes it
         self.menu = m
     end
     local m = self.menu
+    m:Raise()
     for _, b in ipairs(m.buttons) do b:Hide() end
     local y = 6
     for i, e in ipairs(entries) do

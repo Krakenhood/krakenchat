@@ -518,6 +518,16 @@ ChatFrame1EditBox.SetPoint = nil
 KrakenChatFrame.GetBottom = nil
 KrakenChatFrame:SetSize(w0, h0)
 
+section("context menu clicks")
+Say("WHISPER", "bye", "Zedd", "Player-1-Z")
+KC.UI:StreamMenu(nil, "w:zedd")
+check(KrakenChatMenu:GetParent() == UIParent, "the menu doesn't belong to the chat window (its layering can't drop under the click-catcher)")
+local closeBtn
+for _, b in ipairs(KC.UI.menu.buttons) do if b:IsShown() and b.text:GetText() == "Close conversation" then closeBtn = b end end
+Click(closeBtn)
+check(S("w:zedd") == nil and not KrakenChatMenu:IsShown(), "clicking 'Close conversation' closes it")
+KC.UI:Select("all")
+
 section("opening a stream opens its section")
 KC.db.settings.collapsed.channels = true
 KC.UI:Select("ch:trade")
