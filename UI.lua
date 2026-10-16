@@ -686,7 +686,7 @@ local function layoutMsg(w, item, width, all)
         w.body:SetPoint("TOPLEFT", bodyX, -top)
         w.body:SetWidth(math.max(40, width - bodyX))
         w.body:SetTextColor(rgb(Theme.text))
-        w.body:SetText(Feed:Line(m, s, all))
+        w.body:SetText(Feed:Line(m, s, all, item.cont))
     end
     local h = KC.clean(w.body:GetStringHeight()) or size
     if type(h) ~= "number" or h < size then h = size end

@@ -215,18 +215,20 @@ function Feed.Color(m)
 end
 
 -- The text of one line (without the time). `all`: shown in "All messages", so
--- the stream's tag goes in front.
-function Feed:Line(m, s, all)
+-- the stream's tag goes in front. `cont`: the line continues the block above,
+-- so the tag and the name are left out.
+function Feed:Line(m, s, all, cont)
     local r, g, b = Feed.Color(m)
     local color = "|cff" .. hex(r, g, b)
+    local text = Feed.LinkURLs(m.x)
+    if (m.n or 1) > 1 then text = text .. ("  |cff8a8f98x%d|r"):format(m.n) end
+    if cont then return color .. text .. "|r" end
+
     local parts = {}
     if all and s.tag and not (s.fold and m.f == "plain") then
         parts[#parts + 1] = color .. "[" .. s.tag .. "]|r "
     end
     if m.w then parts[#parts + 1] = "|cffff4646[Warning]|r " end
-
-    local text = Feed.LinkURLs(m.x)
-    if (m.n or 1) > 1 then text = text .. ("  |cff8a8f98x%d|r"):format(m.n) end
 
     local who = m.a
     local target = s.sec == "conv" and ("stream:" .. s.key) or ("name:" .. tostring(who))

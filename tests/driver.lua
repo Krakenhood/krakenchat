@@ -168,6 +168,8 @@ local wl = Feed:Line(w.msgs[2], w, true)
 check(wl:find("To Elunara", 1, true) and wl:find("stream:w:elunara", 1, true), "my whisper reads 'To Elunara' and replies to her")
 check(Feed:CopyText(S("guild").msgs[1], S("guild")):find("[Guild] Thalianne: anyone up for Deadmines?", 1, true), "copy text is plain")
 check(Feed:Line(trade.msgs[1], trade, false):find("x2", 1, true), "repeat count shown")
+local contLine = Feed:Line(S("guild").msgs[3], S("guild"), true, true)
+check(not contLine:find("Brontor", 1, true) and not contLine:find("[Guild]", 1, true) and contLine:find("need 2 more", 1, true), "a continued line leaves out tag and name")
 
 section("secret text")
 Say("PARTY", SECRET, "Thalianne", "Player-1-T")
