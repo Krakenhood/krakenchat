@@ -81,6 +81,7 @@ end
 function Object:GetText() return self._text end
 function Object:GetStringHeight() if self._secret then return SECRET end return 14 end
 function Object:GetStringWidth() return 50 end
+function Object:IsTruncated() return TRUNCATE ~= nil and TRUNCATE[self._text] or false end
 function Object:GetVerticalScroll() return self._scroll or 0 end
 function Object:SetVerticalScroll(v) rawset(self, "_scroll", v) end
 function Object:GetPoint() return "CENTER", nil, "CENTER", 0, 0 end

@@ -424,8 +424,18 @@ function factories.stream(parent)
     w.label = Text(w, 12)
     w.label:SetPoint("LEFT", 20, 0)
     w.label:SetPoint("RIGHT", w.flag, "LEFT", -4, 0)
-    w:SetScript("OnEnter", function(self) self.hl:Show() end)
-    w:SetScript("OnLeave", function(self) self.hl:Hide() end)
+    w:SetScript("OnEnter", function(self)
+        self.hl:Show()
+        if self.full then -- the name was shortened: the whole of it
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(self.full, 1, 1, 1)
+            GameTooltip:Show()
+        end
+    end)
+    w:SetScript("OnLeave", function(self)
+        self.hl:Hide()
+        GameTooltip:Hide()
+    end)
     w:SetScript("OnClick", factories.streamClick)
     return w
 end
@@ -1378,6 +1388,15 @@ local function fillStream(w, key, label, s)
     if muted then r, g, b = Theme.dim[1] * 0.8, Theme.dim[2] * 0.8, Theme.dim[3] * 0.8 end
     w.label:SetText(label)
     w.label:SetTextColor(r, g, b)
+    -- too long for the sidebar: "Misseseseses Hazecaller" becomes "Misseseseses H."
+    -- (the game adds "..." if even that doesn't fit); the tooltip has it all
+    w.full = nil
+    local ok, cut = pcall(w.label.IsTruncated, w.label)
+    if ok and KC.clean(cut) then
+        w.full = label
+        local first, initial = label:match("^(%S+)%s+(%S)")
+        if first then w.label:SetText(first .. " " .. initial:upper() .. ".") end
+    end
     local unread = s and s.unread or 0
     w.badge:SetShown(unread > 0)
     w.count:SetText(unread > 99 and "99+" or tostring(unread))

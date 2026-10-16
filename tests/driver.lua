@@ -575,6 +575,19 @@ KC.db.settings.fold.loot = true
 check(KC.UI.StreamFlag("ch:trade", S("ch:trade")) == nil and KC.UI.StreamFlag("loot", S("loot")) == nil, "back to the defaults: no note")
 KC.db.settings.fold["ch:trade"], KC.db.settings.fold.loot = nil, nil
 
+section("long names")
+Say("WHISPER", "hello", "Misseseseses Hazecaller", "Player-1-L")
+TRUNCATE = { ["Misseseseses Hazecaller"] = true }
+CAPTURE = {}
+KC.UI:RenderSidebar()
+local sawShort, sawLong = false, false
+for _, t in ipairs(CAPTURE) do
+    if t == "Misseseseses H." then sawShort = true end
+end
+check(sawShort, "a name too long for the sidebar becomes 'Misseseseses H.'")
+CAPTURE, TRUNCATE = nil, nil
+KC:CloseStream("w:misseseseseshazecaller")
+
 section("context menu clicks")
 Say("WHISPER", "bye", "Zedd", "Player-1-Z")
 KC.UI:StreamMenu(nil, "w:zedd")
