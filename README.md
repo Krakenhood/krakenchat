@@ -17,7 +17,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
 - **WoW style**: a gold border around dark stone and the title in the game's fantasy font. A flat teal look is there as an alternative (`/kc style teal`, or in the settings).
 - **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps, the minimap button and the teal style, plus the text size.
-- **Names or symbols**: the button at the bottom of the sidebar (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. `/kc symbols round` makes them round. `/kc theme 1` to `5` sets style and sidebar together, for comparing.
+- **Names or symbols**: a tick box in the settings (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. `/kc symbols round` makes them round. `/kc theme 1` to `5` sets style and sidebar together, for comparing.
 - **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a dot for unread whispers, and a key binding.
 
 ## Install

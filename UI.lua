@@ -823,30 +823,6 @@ function UI:CreateRail(f)
     toggle:SetScript("OnClick", function() UI:ToggleSide() end)
     self.sideToggle = toggle
 
-    -- names or symbols in the sidebar
-    local mode = CreateFrame("Button", nil, f)
-    mode:SetSize(18, 18)
-    mode:SetPoint("LEFT", toggle, "RIGHT", 0, 0)
-    mode.icon = mode:CreateTexture(nil, "ARTWORK")
-    mode.icon:SetSize(14, 14)
-    mode.icon:SetPoint("CENTER")
-    mode.text = Text(mode, 11, Theme.dim, "CENTER")
-    mode.text:SetPoint("CENTER", 0, 0)
-    mode.text:SetText("Aa")
-    mode:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(KC:Look().symbols and "Show names" or "Show symbols", 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    mode:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    mode:SetScript("OnClick", function()
-        local settings = KC.db.settings
-        settings.sidebar = settings.sidebar == "text" and "symbols" or "text"
-        UI:ApplyChat()
-        UI:RenderSidebar()
-        UI:RenderFeed()
-    end)
-    self.modeToggle = mode
 
     -- while folded in: unread messages, click to fold out
     local badge = CreateFrame("Button", nil, f)
@@ -874,12 +850,6 @@ function UI:ApplySide()
     self.footer:SetPoint("BOTTOMLEFT", w + PAD + 1, 6)
     self.sideToggle.arrow.Point(collapsed and "right" or "left")
     self.sideToggle:SetShown(not KC.db.settings.chatCollapsed)
-    -- the names/symbols switch shows the other choice
-    local symbols = KC:Look().symbols
-    self.modeToggle:SetShown(not collapsed)
-    self.modeToggle.text:SetShown(symbols)
-    self.modeToggle.icon:SetShown(not symbols)
-    if not symbols then UI.SetSymbol(self.modeToggle.icon, KC:Stream("guild") or nil) end
     self:UpdateRail()
 end
 
