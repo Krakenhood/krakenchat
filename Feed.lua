@@ -49,13 +49,24 @@ function Feed:Collect(view, query)
     elseif KC.char.streams[view] then
         streams[1] = KC.char.streams[view]
     end
+    -- System also lists the group lines that live in Party, Raid and Instance
+    local sysOnly = {}
+    if view == "system" then
+        for _, key in ipairs({ "party", "raid", "instance" }) do
+            local s = KC.char.streams[key]
+            if s then
+                streams[#streams + 1] = s
+                sysOnly[s] = true
+            end
+        end
+    end
 
     local out = {}
     for _, s in ipairs(streams) do
         local n, list = 0, s.msgs
         for i = #list, 1, -1 do
             local m = list[i]
-            if matches(m, q) then
+            if matches(m, q) and (not sysOnly[s] or m.sys) then
                 out[#out + 1] = { m = m, s = s }
                 n = n + 1
                 if n >= self.CAP then break end

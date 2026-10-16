@@ -4,7 +4,8 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 
 - **Conversations**: every whisper partner (and Battle.net friend) gets their own conversation, with a red unread badge (so does your party or raid); guild chat gets a calmer dark-gold one. Your replies and their AFK auto-replies land in the same place.
 - **Streams in a sidebar**: Conversations, Group & Guild, Nearby, Channels and Game, each a section you can fold shut. Click a stream to see only that; "All messages" shows everything.
-- **Folding**: in "All messages", runs of loot, gold, XP, reputation, system and NPC lines fold into one line ("5 lines: 3 loot & gold, 2 xp & reputation"). Click it to open it.
+- **Folding**: in "All messages", runs of loot, gold, XP, reputation, crafting and NPC lines fold into one line ("5 lines: 3 loot & gold, 2 xp & reputation"). Click it to open it. System lines are never folded.
+- **Group news where you look for it**: system lines about your group (someone joins or leaves, invites, loot method and threshold, new leader, instance reset, dice rolls) show in the Party, Raid or Instance stream, in "All messages" and under System. They're recognised by the game's own texts, so it works in every language.
 - **No repeats**: the same message from the same person in Say, Yell or a channel within 10 minutes is counted (`x3`) instead of shown again. Goodbye, trade spam.
 - **Blocks**: lines from the same person within two minutes are grouped, with the name and time shown once.
 - **Search**: click the magnifier in the header and type to filter the open stream by text or sender. An empty search folds back into the magnifier.

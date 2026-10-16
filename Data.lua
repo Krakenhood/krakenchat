@@ -47,7 +47,7 @@ KC.Fixed = {
     yell     = { label = "Yell", tag = "Yell", sec = "near", order = 2, cap = 200, dedupe = true },
     emote    = { label = "Emotes", tag = "Emote", sec = "near", order = 3, cap = 150 },
     npc      = { label = "NPCs", tag = "NPC", sec = "game", order = 1, cap = 150, fold = true },
-    system   = { label = "System", tag = "System", sec = "game", order = 2, cap = 200, fold = true },
+    system   = { label = "System", tag = "System", sec = "game", order = 2, cap = 200 },
     loot     = { label = "Loot & gold", tag = "Loot", sec = "game", order = 3, cap = 200, fold = true },
     progress = { label = "XP & reputation", tag = "Progress", sec = "game", order = 4, cap = 150, fold = true },
     achieve  = { label = "Achievements", tag = "Achievement", sec = "game", order = 5, cap = 100 },
@@ -57,6 +57,21 @@ KC.Fixed = {
 
 KC.WhisperCap = 300
 KC.ChannelCap = 250
+
+-- System lines about your group (the game's own texts, so any language works):
+-- they go into the Party, Raid or Instance stream, where you look for them,
+-- instead of System.
+KC.GroupMessages = {
+    "ERR_JOINED_GROUP_S", "ERR_LEFT_GROUP_S", "ERR_LEFT_GROUP_YOU", "ERR_GROUP_DISBANDED", "ERR_UNINVITE_YOU",
+    "ERR_INVITED_TO_GROUP_SS", "ERR_INVITED_ALREADY_IN_GROUP_SS", "ERR_INVITE_PLAYER_S", "ERR_DECLINE_GROUP_S",
+    "ERR_RAID_MEMBER_ADDED_S", "ERR_RAID_MEMBER_REMOVED_S", "ERR_RAID_YOU_JOINED", "ERR_RAID_YOU_LEFT",
+    "ERR_PARTY_CONVERTED_TO_RAID", "ERR_RAID_CONVERTED_TO_PARTY", "ERR_NEW_LEADER_S", "ERR_NEW_LEADER_YOU",
+    "ERR_SET_LOOT_FREEFORALL", "ERR_SET_LOOT_ROUNDROBIN", "ERR_SET_LOOT_MASTER", "ERR_SET_LOOT_GROUP",
+    "ERR_SET_LOOT_NBG", "ERR_SET_LOOT_PERSONAL", "ERR_SET_LOOT_THRESHOLD_S",
+    "ERR_DUNGEON_DIFFICULTY_CHANGED_S", "ERR_RAID_DIFFICULTY_CHANGED_S",
+    "INSTANCE_RESET_SUCCESS", "INSTANCE_RESET_FAILED", "INSTANCE_RESET_FAILED_OFFLINE",
+    "ERR_INSTANCE_GROUP_ADDED_S", "ERR_INSTANCE_GROUP_REMOVED_S", "RANDOM_ROLL_RESULT",
+}
 
 -- Short names for well-known channels.
 KC.ChannelTags = {

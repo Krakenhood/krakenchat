@@ -179,6 +179,14 @@ function ChatEdit_ActivateChat(box) end
 function ChatFrame_DeactivateForTest(box) ChatEdit_DeactivateChat(box) end
 
 C_PartyInfo = { InviteUnit = function(name) INVITED = name end }
+ERR_JOINED_GROUP_S = "%s joins the party."
+ERR_LEFT_GROUP_YOU = "You leave the group."
+ERR_SET_LOOT_THRESHOLD_S = "Loot threshold set to %s."
+ERR_INVITED_ALREADY_IN_GROUP_SS = "%s invited you to a group, but you could not accept because you are already in a group."
+RANDOM_ROLL_RESULT = "%s rolls %d (%d-%d)"
+GROUP = { party = false, raid = false }
+function IsInGroup() return GROUP.party or GROUP.raid end
+function IsInRaid() return GROUP.raid end
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 
 KNOWN_EVENTS = { ADDON_LOADED = true, PLAYER_LOGIN = true, PLAYER_LOGOUT = true }

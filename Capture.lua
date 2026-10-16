@@ -133,6 +133,49 @@ local function channelName(base, display)
 end
 
 --------------------------------------------------------------------------------
+-- Group system lines
+--------------------------------------------------------------------------------
+
+-- "%s joins the party." -> "^(.-) joins the party%.$"
+local function toPattern(fmt)
+    local p = fmt:gsub("%%%d?%$?s", "\001"):gsub("%%%d?%$?d", "\002")
+    p = p:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%0")
+    return "^" .. p:gsub("\001", "(.-)"):gsub("\002", "(%%d+)") .. "$"
+end
+
+local groupPatterns
+local function isGroupLine(text)
+    if not groupPatterns then
+        groupPatterns = {}
+        for _, name in ipairs(KC.GroupMessages) do
+            local fmt = _G[name]
+            if type(fmt) == "string" and fmt ~= "" then groupPatterns[#groupPatterns + 1] = toPattern(fmt) end
+        end
+    end
+    text = KC.Plain(text)
+    for _, p in ipairs(groupPatterns) do
+        if text:find(p) then return true end
+    end
+    return false
+end
+KC.IsGroupLine = isGroupLine
+
+-- The stream of the group you're in (or were last in: "You leave the group").
+local function groupStream()
+    local key
+    if call(IsInRaid) then
+        key = "raid"
+    elseif LE_PARTY_CATEGORY_INSTANCE and call(IsInGroup, LE_PARTY_CATEGORY_INSTANCE)
+        and not call(IsInGroup, LE_PARTY_CATEGORY_HOME) then
+        key = "instance"
+    elseif call(IsInGroup) then
+        key = "party"
+    end
+    if key then KC.lastGroup = key end
+    return key or KC.lastGroup or "party"
+end
+
+--------------------------------------------------------------------------------
 -- Capturing
 --------------------------------------------------------------------------------
 
@@ -238,6 +281,10 @@ function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, ch
         msg.a = sender and KC.ShortName(sender)
         msg.c = classOf(guid, sender)
         msg.o = isMe(sender) or nil
+    elseif ctype == "SYSTEM" and not secret and isGroupLine(text) then
+        -- about your group: shown in Party / Raid / Instance (and from there in All messages)
+        s = self:EnsureStream(groupStream())
+        msg.sys = true
     else
         s = self:EnsureStream(def.stream)
         msg.a = sender and KC.ShortName(sender)

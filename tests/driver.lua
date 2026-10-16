@@ -451,6 +451,36 @@ KC.UI:ToggleChat()
 check(not KC.UI.pill:IsShown() and KC.UI.atBottom, "unfolding opens at the bottom, no banner")
 KC.UI:Select("all")
 
+section("group lines in the group's stream")
+check(KC.IsGroupLine("Thalianne joins the party.") and KC.IsGroupLine("Loot threshold set to Uncommon."), "the game's group texts are recognised")
+check(KC.IsGroupLine("|cffffffff|Hplayer:Putin|h[Putin Vladimirov]|h|r invited you to a group, but you could not accept because you are already in a group."), "also with a player link in them")
+check(KC.IsGroupLine("Brontor rolls 57 (1-100)"), "dice rolls")
+check(not KC.IsGroupLine("You are now AFK."), "other system lines stay in System")
+GROUP.party = true
+Say("SYSTEM", "Thalianne joins the party.")
+Say("SYSTEM", "Loot threshold set to Uncommon.")
+local pl = S("party").msgs
+check(pl[#pl].sys and pl[#pl].x == "Loot threshold set to Uncommon.", "group system lines go into Party")
+GROUP.party, GROUP.raid = true, true
+Say("SYSTEM", "Brontor rolls 57 (1-100)")
+check(S("raid") and S("raid").msgs[#S("raid").msgs].sys, "in a raid: into Raid")
+GROUP.party, GROUP.raid = false, false
+Say("SYSTEM", "You leave the group.")
+check(S("raid").msgs[#S("raid").msgs].x == "You leave the group.", "leaving: into the group you were in")
+Say("SYSTEM", "You are now AFK.")
+local list2 = items("system")
+check(find(list2, function(i) return i.type == "msg" and i.e.m.x == "Loot threshold set to Uncommon." end) and find(list2, function(i) return i.type == "msg" and i.e.m.x == "You are now AFK." end), "System lists them as well")
+local all2 = items("all")
+local seen = 0
+for _, i in ipairs(all2) do if i.type == "msg" and i.e.m.x == "Loot threshold set to Uncommon." then seen = seen + 1 end end
+check(seen == 1, "and All messages shows them once")
+Say("SYSTEM", "You are now AFK.")
+Say("SYSTEM", "You are no longer AFK.")
+all2 = items("all")
+check(find(all2, function(i) return i.type == "msg" and i.e.m.x == "You are no longer AFK." end), "system lines aren't folded away in All messages")
+KC:MarkRead("party")
+KC:MarkRead("raid")
+
 section("red for your group")
 KC.UI:Select("guild")
 Say("PARTY", "inc!", "Thalianne", "Player-1-T")
