@@ -16,9 +16,13 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **Replying**: the bar at the bottom opens the game's own chat input, already set to that stream (`/w Name`, `/p`, `/g`, `/2`, ...).
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
 - **WoW style**: a gold border around dark stone and the title in the game's fantasy font.
-- **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps and the minimap button, plus the text size.
+- **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps and the minimap button, plus the text size and the background's opacity.
 - **Names or symbols**: a tick box in the settings (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. `/kc symbols round` makes them round.
 - **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a round badge counting unread whispers, and a key binding.
+
+## Icon
+
+`assets/krakenchat-icon.svg` is the source of the icon: the Krakenfriends kraken holding up a speech bubble. `Media/icon.tga` (64x64) is the game texture made from it, used for the minimap button, the addon list and "All messages"; `assets/krakenchat-icon-512.png` is the large version, for CurseForge.
 
 ## Install
 

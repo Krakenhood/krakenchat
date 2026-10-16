@@ -144,7 +144,8 @@ end
 
 local fileCache = {}
 local function resolveFile(path)
-    if not GetFileIDFromPath then return path end
+    -- our own files aren't in the game's file list; they're always there
+    if not GetFileIDFromPath or path:find("^Interface\\AddOns\\") then return path end
     local id = fileCache[path]
     if id == nil then
         id = call(GetFileIDFromPath, path) or false
@@ -158,7 +159,8 @@ local function setFile(tex, candidates)
         local file = resolveFile(path)
         if file then
             tex:SetTexture(file)
-            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            -- game icons have a border to crop; our own icon doesn't
+            if path == KC.IconFile then tex:SetTexCoord(0, 1, 0, 1) else tex:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
             return true
         end
     end
@@ -585,9 +587,9 @@ function UI:Create()
     end)
 
     if KC:Look().palette == "wow" then
-        self:CreateWoWFrame(f)
+        self.backdrop, self.band = self:CreateWoWFrame(f)
     else
-        self:CreateFlatFrame(f)
+        self.flatBg = self:CreateFlatFrame(f)
     end
 
     -- header, sidebar, chat
@@ -596,7 +598,8 @@ end
 
 -- Krakenfriends' look: deep panel, faint teal glow at the top, teal-to-violet rim.
 function UI:CreateFlatFrame(f)
-    Solid(f, "BACKGROUND", Theme.bg):SetAllPoints()
+    local bg = Solid(f, "BACKGROUND", Theme.bg)
+    bg:SetAllPoints()
     local glow = f:CreateTexture(nil, "BACKGROUND", nil, 1)
     glow:SetPoint("TOPLEFT", 1, -1)
     glow:SetPoint("TOPRIGHT", -1, -1)
@@ -608,6 +611,7 @@ function UI:CreateFlatFrame(f)
     rim:SetPoint("TOPRIGHT", -1, -1)
     rim:SetHeight(2)
     Gradient(rim, "HORIZONTAL", Theme.accent, 1, Theme.accent2, 1)
+    return bg
 end
 
 -- The game's own look: dark stone inside a gold dialog border, the title in
@@ -639,7 +643,18 @@ function UI:CreateWoWFrame(f)
     band:SetPoint("TOPLEFT", 2, -2)
     band:SetPoint("TOPRIGHT", -2, -2)
     band:SetHeight(HEADER - 2)
-    return frame
+    return frame, band
+end
+
+-- The background's opacity (settings: Background). The border and the text
+-- stay solid.
+function UI:ApplyAlpha()
+    if not self.frame then return end
+    local a = KC.db.settings.bgAlpha or 1
+    if self.backdrop and self.backdrop.SetBackdropColor then self.backdrop:SetBackdropColor(0.55, 0.55, 0.55, a) end
+    if self.band then self.band:SetAlpha(a) end
+    if self.flatBg then self.flatBg:SetAlpha(a) end
+    if self.sideBg then self.sideBg:SetAlpha(a) end
 end
 
 -- The header (title, search, close), the sidebar and the chat.
@@ -809,6 +824,7 @@ function UI:CreateContent(f)
     end)
 
     self:ApplyChat()
+    self:ApplyAlpha()
 end
 
 --------------------------------------------------------------------------------

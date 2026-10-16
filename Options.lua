@@ -73,7 +73,23 @@ local ENTRIES = {
             KC:Fire("SETTINGS")
         end,
     },
-    { size = true },
+    {
+        stepper = true, label = "Text size",
+        value = function() return tostring(settings().fontSize or 12) end,
+        step = function(delta)
+            settings().fontSize = math.max(10, math.min(18, (settings().fontSize or 12) + delta))
+            KC:Fire("LAYOUT")
+        end,
+    },
+    {
+        stepper = true, label = "Background",
+        value = function() return math.floor((settings().bgAlpha or 1) * 100 + 0.5) .. "%" end,
+        step = function(delta)
+            local a = math.floor((settings().bgAlpha or 1) * 10 + 0.5) + delta
+            settings().bgAlpha = math.max(2, math.min(10, a)) / 10
+            KC.UI:ApplyAlpha()
+        end,
+    },
 }
 
 local function makeCheck(parent, D)
@@ -103,12 +119,14 @@ local function makeCheck(parent, D)
     return b
 end
 
-local function makeSize(parent, D)
+-- A row with - and + around a value (text size, opacity).
+local function makeStepper(parent, D, e)
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW)
+    row.entry = e
     row.label = D.Text(row, 12)
     row.label:SetPoint("LEFT", 22, 0)
-    row.label:SetText("Text size")
+    row.label:SetText(e.label)
     local function step(delta, x)
         local b = CreateFrame("Button", nil, row)
         b:SetSize(18, 18)
@@ -119,18 +137,16 @@ local function makeSize(parent, D)
         t:SetPoint("CENTER", 0, 1)
         t:SetText(delta > 0 and "+" or "-")
         b:SetScript("OnClick", function()
-            local n = math.max(10, math.min(18, (settings().fontSize or 12) + delta))
-            settings().fontSize = n
-            KC:Fire("LAYOUT")
+            e.step(delta)
             Options:Refresh()
         end)
         return b
     end
-    row.minus = step(-1, 120)
+    row.minus = step(-1, 150)
     row.value = D.Text(row, 12, nil, "CENTER")
-    row.value:SetPoint("LEFT", 140, 0)
-    row.value:SetWidth(28)
-    row.plus = step(1, 170)
+    row.value:SetPoint("LEFT", 170, 0)
+    row.value:SetWidth(40)
+    row.plus = step(1, 212)
     return row
 end
 
@@ -179,9 +195,10 @@ function Options:Create()
             line:SetHeight(1)
             line:SetPoint("LEFT", w.label, "RIGHT", 8, 0)
             line:SetPoint("RIGHT", 0, 0)
-        elseif e.size then
-            w = makeSize(f, D)
-            self.size = w
+        elseif e.stepper then
+            w = makeStepper(f, D, e)
+            self.steppers = self.steppers or {}
+            self.steppers[#self.steppers + 1] = w
         else
             w = makeCheck(f, D)
             w.entry = e
@@ -205,7 +222,7 @@ function Options:Refresh()
         row.label:SetTextColor(KC.UI.Draw.rgb(enabled and Theme.text or Theme.dim))
         row:SetAlpha(enabled and 1 or 0.5)
     end
-    self.size.value:SetText(tostring(settings().fontSize or 12))
+    for _, row in ipairs(self.steppers or {}) do row.value:SetText(row.entry.value()) end
 end
 
 function Options:Toggle()
