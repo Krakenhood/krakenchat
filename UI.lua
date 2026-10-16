@@ -114,6 +114,15 @@ end
 
 local function fontSize() return KC.db.settings.fontSize or 12 end
 
+-- Unread badges: red for whispers (meant for you), a calm dark gold for group
+-- and guild chat, so a whisper stands out.
+local function paintBadge(bg, count, whisper)
+    local c = whisper and Theme.accent2 or Theme.calm
+    bg:SetColorTexture(c[1], c[2], c[3], 1)
+    count:SetTextColor(rgb(whisper and Theme.text or Theme.accent))
+end
+UI.PaintBadge = paintBadge
+
 -- for the settings window
 UI.Draw = { Solid = Solid, Text = Text, Border = Border, Strokes = Strokes, rgb = rgb }
 
@@ -378,7 +387,8 @@ function factories.stream(parent)
     w.badge = CreateFrame("Frame", nil, w)
     w.badge:SetSize(22, 14)
     w.badge:SetPoint("RIGHT", -8, 0)
-    Solid(w.badge, "ARTWORK", Theme.accent2):SetAllPoints()
+    w.badgeBg = Solid(w.badge, "ARTWORK", Theme.accent2)
+    w.badgeBg:SetAllPoints()
     w.count = Text(w.badge, 9, Theme.text, "CENTER")
     w.count:SetPoint("CENTER", 0, 0)
     w.label = Text(w, 12)
@@ -428,7 +438,8 @@ function factories.icon(parent)
     w.badge:SetSize(16, 12)
     w.badge:SetPoint("TOPRIGHT", -3, -1)
     w.badge:SetFrameLevel(w:GetFrameLevel() + 3)
-    Solid(w.badge, "OVERLAY", Theme.accent2):SetAllPoints()
+    w.badgeBg = Solid(w.badge, "OVERLAY", Theme.accent2)
+    w.badgeBg:SetAllPoints()
     w.count = Text(w.badge, 8, Theme.text, "CENTER")
     w.count:SetPoint("CENTER", 0, 0)
     w:SetScript("OnEnter", function(self)
@@ -828,7 +839,8 @@ function UI:CreateRail(f)
     local badge = CreateFrame("Button", nil, f)
     badge:SetSize(22, 16)
     badge:SetPoint("TOPLEFT", 4, -HEADER - 10)
-    Solid(badge, "ARTWORK", Theme.accent2):SetAllPoints()
+    badge.bg = Solid(badge, "ARTWORK", Theme.accent2)
+    badge.bg:SetAllPoints()
     badge.count = Text(badge, 9, Theme.text, "CENTER")
     badge.count:SetPoint("CENTER", 0, 0)
     badge:SetScript("OnClick", function() UI:ToggleSide() end)
@@ -900,15 +912,17 @@ end
 
 function UI:UpdateRail()
     if not self.railBadge then return end
-    local unread = 0
+    local unread, whispers = 0, false
     if KC.db.settings.sideCollapsed then
         for _, s in pairs(KC.char.streams) do
             local sec = KC:SectionOf(s)
             if sec and sec.personal then unread = unread + s.unread end
+            if s.sec == "conv" and s.unread > 0 then whispers = true end
         end
     end
     self.railBadge.count:SetText(unread > 99 and "99+" or tostring(unread))
     self.railBadge:SetShown(unread > 0)
+    paintBadge(self.railBadge.bg, self.railBadge.count, whispers)
 end
 
 function UI:ToggleSide()
@@ -1250,6 +1264,7 @@ local function fillStream(w, key, label, s)
     local unread = s and s.unread or 0
     w.badge:SetShown(unread > 0)
     w.count:SetText(unread > 99 and "99+" or tostring(unread))
+    if unread > 0 then paintBadge(w.badgeBg, w.count, s.sec == "conv") end
 end
 
 function UI:RenderSidebar()
@@ -1290,7 +1305,7 @@ function UI:RenderSidebar()
             local unread = 0
             for _, s in ipairs(list) do unread = unread + s.unread end
             if collapsed[sec.id] and unread > 0 then
-                h.extra:SetText(KC.Colorize(tostring(unread), rgb(Theme.accent2)))
+                h.extra:SetText(KC.Colorize(tostring(unread), rgb(sec.id == "conv" and { 1, 0.3, 0.25 } or Theme.accent)))
             elseif sec.id == "conv" then
                 h.extra:SetText(KC.db.settings.sort == "name" and "a-z" or "recent")
             else
@@ -1334,6 +1349,7 @@ local function fillIcon(w, key, label, s)
     w.icon:SetAlpha(w.muted and 0.45 or 1)
     w.badge:SetShown(w.unread > 0)
     w.count:SetText(w.unread > 99 and "99" or tostring(w.unread))
+    if w.unread > 0 then paintBadge(w.badgeBg, w.count, s.sec == "conv") end
 end
 
 -- The sidebar as one column of symbols, sections apart by a thin line.

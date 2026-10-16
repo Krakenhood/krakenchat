@@ -2,7 +2,7 @@
 
 A chat window for **World of Warcraft: Forever** that doesn't suck. Everything said around you, sorted into streams you can open, fold, hide and search, instead of one long scroll where the whisper you were waiting for drowns between loot lines and trade spam.
 
-- **Conversations**: every whisper partner (and Battle.net friend) gets their own conversation, with unread badges. Your replies and their AFK auto-replies land in the same place.
+- **Conversations**: every whisper partner (and Battle.net friend) gets their own conversation, with a red unread badge; group and guild chat get a calmer dark-gold one, so whispers stand out. Your replies and their AFK auto-replies land in the same place.
 - **Streams in a sidebar**: Conversations, Group & Guild, Nearby, Channels and Game, each a section you can fold shut. Click a stream to see only that; "All messages" shows everything.
 - **Folding**: in "All messages", runs of loot, gold, XP, reputation, system and NPC lines fold into one line ("5 lines: 3 loot & gold, 2 xp & reputation"). Click it to open it.
 - **No repeats**: the same message from the same person in Say, Yell or a channel within 10 minutes is counted (`x3`) instead of shown again. Goodbye, trade spam.
@@ -15,10 +15,10 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **History**: messages are kept per character and survive `/reload` and logging out.
 - **Replying**: the bar at the bottom opens the game's own chat input, already set to that stream (`/w Name`, `/p`, `/g`, `/2`, ...).
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
-- **WoW style**: a gold border around dark stone and the title in the game's fantasy font. A flat teal look is there as an alternative (`/kc style teal`, or in the settings).
-- **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps, the minimap button and the teal style, plus the text size.
-- **Names or symbols**: a tick box in the settings (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. `/kc symbols round` makes them round. `/kc theme 1` to `5` sets style and sidebar together, for comparing.
-- **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a dot for unread whispers, and a key binding.
+- **WoW style**: a gold border around dark stone and the title in the game's fantasy font.
+- **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps and the minimap button, plus the text size.
+- **Names or symbols**: a tick box in the settings (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. `/kc symbols round` makes them round.
+- **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a round badge counting unread whispers, and a key binding.
 
 ## Install
 
@@ -35,8 +35,6 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc side` | Fold the stream list in or out |
 | `/kc symbols` | Sidebar as symbols or names (`/kc symbols round` for round symbols) |
 | `/kc settings` | Open the settings window |
-| `/kc style teal` | The alternative teal look (`/kc style wow` for the standard one) |
-| `/kc theme <1-5>` | Both at once: 1 teal names, 2 teal symbols, 3 teal round, 4 WoW names, 5 WoW symbols |
 | `/kc whisperopen` | Whether a whisper unfolds the folded-in chat |
 | `/kc blizzard` | Hide or show the game's own chat window |
 | `/kc minimap` | Show or hide the minimap button |

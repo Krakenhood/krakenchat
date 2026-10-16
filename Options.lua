@@ -74,14 +74,6 @@ local ENTRIES = {
         end,
     },
     { size = true },
-    {
-        label = "Teal style instead of the WoW style (reloads)",
-        get = function() return settings().style == "flat" end,
-        set = function(v)
-            KC.UI:Create()
-            KC.UI:SetLook(v and "flat" or "wow", settings().sidebar)
-        end,
-    },
 }
 
 local function makeCheck(parent, D)
