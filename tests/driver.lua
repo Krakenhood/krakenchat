@@ -439,6 +439,18 @@ KC:CloseStream("w:pip")
 KC:CloseStream("w:brontor")
 KC.UI:Select("all")
 
+section("no 'new messages' banner over the folded-in list")
+KC.UI:Select("guild")
+KC.UI.atBottom = false -- scrolled up a little
+KC.UI:ToggleChat()
+check(not KC.UI.pill:IsShown(), "folding hides the banner")
+Say("GUILD", "anyone?", "Thalianne", "Player-1-T")
+Say("GUILD", "hello??", "Thalianne", "Player-1-T")
+check(not KC.UI.pill:IsShown(), "messages arriving while folded in don't bring it back")
+KC.UI:ToggleChat()
+check(not KC.UI.pill:IsShown() and KC.UI.atBottom, "unfolding opens at the bottom, no banner")
+KC.UI:Select("all")
+
 section("opening a stream opens its section")
 KC.db.settings.collapsed.channels = true
 KC.UI:Select("ch:trade")

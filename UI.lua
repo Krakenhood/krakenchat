@@ -902,6 +902,8 @@ function UI:ApplyChat()
     local narrow = sideWidth() + 2
     for _, key in ipairs(CHAT_PARTS) do self[key]:SetShown(not folded) end
     if folded then
+        -- the chat comes back at the bottom (ToggleChat), so nothing is "new below"
+        self.newBelow = 0
         self.pill:Hide()
         if self.search:IsShown() then
             self.search:SetText("")
@@ -1078,7 +1080,8 @@ function UI:ScrollToBottom()
 end
 
 function UI:UpdatePill()
-    if self.newBelow > 0 and not self.atBottom then
+    -- only over an open chat: never over the folded-in stream list
+    if self.newBelow > 0 and not self.atBottom and not KC.db.settings.chatCollapsed then
         self.pill.text:SetText(self.newBelow == 1 and "1 new message" or (self.newBelow .. " new messages"))
         self.pill:Show()
     else
