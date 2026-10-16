@@ -1,0 +1,5 @@
+<Bindings>
+    <Binding name="KRAKENCHAT_TOGGLE" header="KRAKENCHAT" category="ADDONS">
+        KrakenChat_Toggle()
+    </Binding>
+</Bindings>

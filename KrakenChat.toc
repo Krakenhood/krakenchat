@@ -1,0 +1,16 @@
+## Interface: 16001, 120105
+## Title: |cff4fd1c5Kraken|rchat
+## Notes: A chat window that doesn't suck: conversations, folding of loot and system spam, search, unread badges and history that survives a reload.
+## Author: Bernhard
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Letter_15
+## AddonCompartmentFunc: KrakenChat_OnAddonCompartmentClick
+## SavedVariables: KrakenChatDB
+## SavedVariablesPerCharacter: KrakenChatCharDB
+
+Core.lua
+Data.lua
+Capture.lua
+Feed.lua
+UI.lua
+Minimap.lua

@@ -1,0 +1,269 @@
+-- Loads the addon in TOC order and plays through a session.
+local NS = {}
+for _, name in ipairs(TOC) do
+    local chunk, err = load(FILES[name], "@" .. name)
+    if not chunk then error(err) end
+    chunk("KrakenChat", NS)
+end
+local KC = NS
+local Feed = KC.Feed
+local passed, failed = 0, 0
+local function check(cond, label)
+    if cond then passed = passed + 1 else failed = failed + 1; print("  FAIL: " .. label) end
+end
+local function section(t) print("\n== " .. t) end
+local function S(key) return KC.char.streams[key] end
+local function items(view, query)
+    local entries = Feed:Collect(view, query)
+    return Feed:Build(entries, view == "all" and not query, KC.UI.expanded)
+end
+local function find(list, pred)
+    for i, item in ipairs(list) do if pred(item) then return item, i end end
+end
+local function flush() Advance(0.2) end
+
+section("login")
+FireEvent("ADDON_LOADED", "KrakenChat")
+FireEvent("PLAYER_LOGIN")
+check(KC.ready and KC.me.name == "Krakenhood" and KC.me.class == "MAGE", "player identity")
+check(#KC.missingEvents == 0, "all events registered: " .. table.concat(KC.missingEvents, ","))
+check(KrakenChatFrame and KrakenChatFrame:IsShown(), "window opens at login")
+check(KC.db.settings.shown == true, "window remembered as open")
+check(KC.db.settings.view == "all", "starts on All messages")
+
+section("whispers")
+PLAYERS["Player-1-E"] = "PRIEST"
+Say("WHISPER", "hey, need a healer?", "Elunara-Forever", "Player-1-E")
+local w = S("w:elunara")
+check(w and w.sec == "conv" and w.label == "Elunara" and w.class == "PRIEST", "conversation stream made with name and class")
+check(w.unread == 1, "incoming whisper is unread")
+check(KC:UnreadConversations() == 1, "unread conversations counted")
+Say("WHISPER_INFORM", "yes please", "Elunara-Forever", "Player-1-E")
+check(#w.msgs == 2 and w.msgs[2].o and w.msgs[2].a == "Krakenhood", "my reply lands in the same conversation as mine")
+check(w.unread == 1, "my own reply doesn't add unread")
+Say("AFK", "back in 5", "Elunara-Forever", "Player-1-E")
+check(#w.msgs == 3 and w.msgs[3].f == "afk", "AFK auto-reply joins the conversation")
+KC.UI:Select("w:elunara")
+check(w.unread == 0, "opening the conversation marks it read")
+check(KC:UnreadConversations() == 0, "nothing unread")
+Say("WHISPER", "inv pls", "Elunara-Forever", "Player-1-E")
+check(w.unread == 0, "messages in the open conversation are read right away")
+flush()
+check(KC.UI.footer.text:GetText() == "Reply to Elunara", "footer offers a reply")
+Click(KC.UI.footer)
+check(OPENED[#OPENED].tell == "Elunara-Forever", "reply opens a whisper to the full name")
+KC.UI:Select("all")
+
+section("Battle.net whispers")
+BNET[7] = "Thalia#1234"
+Say("BN_WHISPER", "online?", "|Kq7|k", nil, { bn = 7 })
+local bn = S("bn:Thalia#1234")
+check(bn and bn.label == "Thalia" and bn.sec == "conv" and bn.unread == 1, "Battle.net conversation keyed by BattleTag")
+Say("BN_WHISPER", "unknown", "|Kq9|k", nil, { bn = 9 })
+check(S("bn:nil") == nil, "unknown Battle.net sender is skipped")
+KC.UI:Reply("bn:Thalia#1234")
+check(OPENED[#OPENED].bn == "|Kq7|k", "reply finds the friend's account")
+
+section("group, guild, channels")
+PLAYERS["Player-1-T"], PLAYERS["Player-1-B"] = "PRIEST", "WARRIOR"
+Say("GUILD", "anyone up for Deadmines?", "Thalianne", "Player-1-T")
+Say("GUILD", "me!", "Brontor", "Player-1-B")
+Say("GUILD", "need 2 more", "Brontor", "Player-1-B")
+Say("PARTY_LEADER", "pulling", "Thalianne", "Player-1-T")
+Say("PARTY", "hi all", "Krakenhood", "Player-1-ME")
+check(S("guild") and #S("guild").msgs == 3 and S("guild").unread == 3, "guild stream with unread")
+check(S("party").msgs[1].ld and S("party").msgs[2].o, "party leader flag and my own line")
+check(S("party").unread == 1, "my own party line isn't unread")
+Say("CHANNEL", "WTS [Raider Shortsword] cheap", "Goldfinger", "Player-1-G", { channel = "2. Trade - City", index = 2, base = "Trade - City" })
+Say("CHANNEL", "WTS [Raider Shortsword] cheap", "Goldfinger", "Player-1-G", { channel = "2. Trade - City", index = 2, base = "Trade - City" })
+local trade = S("ch:trade")
+check(trade and trade.label == "Trade" and trade.chi == 2 and trade.sec == "channels", "Trade channel stream")
+check(#trade.msgs == 1 and trade.msgs[1].n == 2, "repeated trade message counted, not repeated")
+check(trade.unread == 0, "channels don't count unread")
+Advance(700)
+Say("CHANNEL", "WTS [Raider Shortsword] cheap", "Goldfinger", "Player-1-G", { channel = "2. Trade - City", index = 2, base = "Trade - City" })
+check(#trade.msgs == 2, "the same message after 10 minutes shows again")
+Say("CHANNEL", "hello", "Pip", nil, { channel = "1. General - Elwynn Forest", index = 1, base = "General - Elwynn Forest" })
+Say("CHANNEL", "hi", "Pop", nil, { channel = "1. General - Stormwind City", index = 1, base = "General - Stormwind City" })
+check(S("ch:general") and #S("ch:general").msgs == 2, "zone variants of General share one stream")
+Say("CHANNEL", "LF tank", "Mist", nil, { channel = "4. LookingForGroup", index = 4, base = "LookingForGroup" })
+check(S("ch:lookingforgroup").tag == "LFG", "LookingForGroup is tagged LFG")
+KC.UI:Reply("ch:trade")
+check(OPENED[#OPENED].open == "/2 ", "writing in Trade opens /2")
+KC.UI:Reply("guild")
+check(OPENED[#OPENED].open == "/g ", "writing in guild opens /g")
+
+section("continuation")
+local list = items("guild")
+local first = find(list, function(i) return i.type == "msg" and i.e.m.x == "me!" end)
+local second = find(list, function(i) return i.type == "msg" and i.e.m.x == "need 2 more" end)
+check(first and not first.cont, "first line of a block shows the name")
+check(second and second.cont, "the next line from the same person continues the block")
+Advance(200)
+Say("GUILD", "hello?", "Brontor", "Player-1-B")
+list = items("guild")
+local later = find(list, function(i) return i.type == "msg" and i.e.m.x == "hello?" end)
+check(later and not later.cont, "a line after a pause starts a new block")
+
+section("folding")
+Say("LOOT", "You receive loot: [Linen Cloth].")
+Say("MONEY", "You loot 12 Copper")
+Say("COMBAT_XP_GAIN", "Defias Bandit dies, you gain 145 experience.")
+Say("SAY", "nice", "Pip")
+Say("LOOT", "You receive loot: [Silk Cloth].")
+Say("SAY", "ty", "Pip")
+list = items("all")
+local fold = find(list, function(i) return i.type == "fold" end)
+check(fold and #fold.list == 3 and not fold.open, "three game lines in a row fold into one")
+check(Feed:FoldSummary(fold) == "2 loot & gold, 1 xp & reputation", "fold summary: " .. Feed:FoldSummary(fold))
+check(find(list, function(i) return i.type == "msg" and i.e.m.x == "You receive loot: [Silk Cloth]." end), "a single game line stays a plain line")
+KC.UI.expanded[fold.id] = true
+list = items("all")
+local _, at = find(list, function(i) return i.type == "fold" end)
+check(list[at].open and list[at + 1].indent and list[at + 3].indent, "an open fold lists its lines under it")
+KC.UI.expanded[fold.id] = nil
+list = items("loot")
+check(not find(list, function(i) return i.type == "fold" end), "no folding inside the loot stream itself")
+KC.db.settings.fold.loot = false
+list = items("all")
+check(not find(list, function(i) return i.type == "fold" and #i.list == 3 end), "folding can be switched off per stream")
+KC.db.settings.fold.loot = nil
+
+section("search and mute")
+list = items("all", "shortsword")
+local n = 0
+for _, i in ipairs(list) do if i.type == "msg" then n = n + 1 end end
+check(n == 2, "search finds both trade posts (" .. n .. ")")
+list = items("all", "BRONTOR")
+check(find(list, function(i) return i.type == "msg" and i.e.m.x == "me!" end), "search matches the sender, ignoring case")
+KC.db.settings.muted["ch:trade"] = true
+list = items("all")
+check(not find(list, function(i) return i.type == "msg" and i.e.s.key == "ch:trade" end), "a muted channel stays out of All messages")
+check(#items("ch:trade") > 0, "but is still in its own stream")
+KC.db.settings.muted["ch:trade"] = nil
+
+section("day lines")
+local before = KC.Now()
+Advance(86400 + 60)
+Say("SAY", "new day", "Pip")
+list = items("say")
+local days = 0
+for _, i in ipairs(list) do if i.type == "day" then days = days + 1 end end
+check(days == 2, "a date line between days")
+check(Feed:DayLabel(KC.Now()) == "Today" and Feed:DayLabel(before) == "Yesterday", "Today and Yesterday labels")
+
+section("text")
+local linked = Feed.LinkURLs("see https://example.com/guide, then www.wowhead.com")
+check(linked:find("|Haddon:KrakenChat:url:https://example.com/guide|h", 1, true) and linked:find("|h|r, then", 1, true), "URL made clickable, trailing comma left out")
+check(linked:find("url:www.wowhead.com|h", 1, true), "www. address made clickable")
+local item = "|cff1eff00|Hitem:15210::::|h[Raider Shortsword]|h|r"
+check(Feed.LinkURLs(item .. " https://a.b/c") == item .. " |cff4fd1c5|Haddon:KrakenChat:url:https://a.b/c|h[https://a.b/c]|h|r", "item links left alone next to a URL")
+check(Feed.LinkURLs("no links here") == "no links here", "plain text untouched")
+Say("MONSTER_EMOTE", "%s goes into a frenzy!", "Hogger")
+check(S("npc").msgs[1].x == "Hogger goes into a frenzy!", "NPC emote gets the NPC's name")
+local line = Feed:Line(S("guild").msgs[1], S("guild"), true)
+check(line:find("[Guild]", 1, true) and line:find("Thalianne", 1, true) and line:find("|Haddon:KrakenChat:name:Thalianne|h", 1, true), "line has tag and a clickable name")
+check(line:find("|cffffffffThalianne", 1, true), "name in class colour")
+local wl = Feed:Line(w.msgs[2], w, true)
+check(wl:find("To Elunara", 1, true) and wl:find("stream:w:elunara", 1, true), "my whisper reads 'To Elunara' and replies to her")
+check(Feed:CopyText(S("guild").msgs[1], S("guild")):find("[Guild] Thalianne: anyone up for Deadmines?", 1, true), "copy text is plain")
+check(Feed:Line(trade.msgs[1], trade, false):find("x2", 1, true), "repeat count shown")
+
+section("secret text")
+Say("PARTY", SECRET, "Thalianne", "Player-1-T")
+local sm = S("party").msgs[#S("party").msgs]
+check(sm.secret and rawequal(sm.x, SECRET), "secret line kept for display")
+list = items("all", "pulling")
+check(not find(list, function(i) return i.type == "msg" and i.e.m.secret end), "search skips secret lines")
+Say("PARTY", SECRET, SECRET, SECRET)
+check(#ERRORS == 0, "no errors from secret sender and guid")
+
+section("rendering")
+KC.UI:Select("all")
+CAPTURE = {}
+KC.UI:RenderFeed()
+local found = false
+for _, t in ipairs(CAPTURE) do if type(t) == "string" and t:find("anyone up for Deadmines?", 1, true) then found = true end end
+check(found, "feed rendered the guild line")
+check(#ERRORS == 0, "rendering with secret lines raised no errors")
+CAPTURE = nil
+KC.UI:Select("party")
+check(KC.UI.footer.text:GetText() == "Write in Party", "party footer")
+KC.UI:Select("loot")
+check(not KC.UI.footer:IsShown(), "no footer for loot")
+KC.UI:Select("all")
+check(KC.UI.footer.text:GetText() == "Click to chat", "All messages footer")
+KC.UI.search:SetText("deadmines")
+KC.UI.search._scripts.OnTextChanged(KC.UI.search)
+flush()
+check(KC.UI.query == "deadmines", "search box filters the feed")
+KC.UI.search:SetText("")
+KC.UI.search._scripts.OnTextChanged(KC.UI.search)
+flush()
+
+section("links")
+KC.UI.OnLinkClick(nil, "addon:KrakenChat:url:https://example.com", "[https://example.com]", "LeftButton")
+check(KrakenChatCopyFrame and KrakenChatCopyFrame:IsShown() and KrakenChatCopyFrame.box:GetText() == "https://example.com", "clicking a URL opens the copy box")
+KC.UI.OnLinkClick(nil, "addon:KrakenChat:name:Brontor", "Brontor", "LeftButton")
+check(OPENED[#OPENED].tell == "Brontor", "clicking a name whispers")
+KC.UI.OnLinkClick(nil, "item:15210::::", "[Raider Shortsword]", "LeftButton")
+check(LINKS[#LINKS] == "item:15210::::", "item links go to the game")
+
+section("menus")
+KC.UI:StreamMenu(nil, "ch:trade")
+local entries = KC.UI.menuEntries
+check(entries[2].text == "Hide in All messages", "stream menu offers hiding")
+entries[2].func()
+check(KC.db.settings.muted["ch:trade"] == true, "hiding mutes the stream in All messages")
+KC.UI:StreamMenu(nil, "ch:trade")
+KC.UI.menuEntries[2].func()
+check(KC.db.settings.muted["ch:trade"] == nil, "and showing brings it back")
+KC.UI:StreamMenu(nil, "w:elunara")
+local closeEntry = KC.UI.menuEntries[#KC.UI.menuEntries]
+check(closeEntry.text == "Close conversation", "conversations can be closed")
+KC.UI:MessageMenu(nil, { m = S("guild").msgs[2], s = S("guild") })
+check(KC.UI.menuEntries[2].text == "Copy text" and KC.UI.menuEntries[3].text == "Whisper Brontor", "message menu: copy and whisper")
+
+section("caps")
+for i = 1, 100 do Say("YELL", "loud " .. i, "Pip") end
+for i = 1, 300 do Say("SAY", "line " .. i, "Pip") end
+check(#S("say").msgs == KC.Fixed.say.cap, "say keeps its last " .. KC.Fixed.say.cap .. " lines")
+check(S("say").msgs[#S("say").msgs].x == "line 300", "newest line kept")
+local all = Feed:Collect("all")
+check(#all == Feed.CAP, "All messages shows at most " .. Feed.CAP)
+check(all[#all].m.x == "line 300", "and those are the newest")
+
+section("logout")
+FireEvent("PLAYER_LOGOUT")
+local secretsLeft = 0
+for _, s in pairs(KC.char.streams) do for _, m in ipairs(s.msgs) do if m.secret then secretsLeft = secretsLeft + 1 end end end
+check(secretsLeft == 0, "secret lines are not saved")
+check(KrakenChatCharDB == KC.char and KrakenChatCharDB.streams["guild"], "history is in the saved variables")
+
+section("close and clear")
+closeEntry.func()
+check(S("w:elunara") == nil, "conversation closed")
+KC:ToggleDemo()
+local demoCount = 0
+for _, s in pairs(KC.char.streams) do for _, m in ipairs(s.msgs) do if m.demo then demoCount = demoCount + 1 end end end
+check(demoCount > 10, "demo adds sample messages (" .. demoCount .. ")")
+KC:ToggleDemo()
+demoCount = 0
+for _, s in pairs(KC.char.streams) do for _, m in ipairs(s.msgs) do if m.demo then demoCount = demoCount + 1 end end end
+check(demoCount == 0, "demo removed again")
+KC:ClearHistory()
+check(next(KC.char.streams) == nil, "history cleared")
+KC.UI:RenderFeed()
+check(KC.UI.empty:IsShown(), "empty feed shows a hint")
+
+section("slash")
+SlashCmdList.KRAKENCHAT("time")
+check(KC.db.settings.timestamps == false, "/kc time switches timestamps")
+SlashCmdList.KRAKENCHAT("font 14")
+check(KC.db.settings.fontSize == 14, "/kc font sets the size")
+SlashCmdList.KRAKENCHAT("")
+check(not KrakenChatFrame:IsShown() and KC.db.settings.shown == false, "/kc closes the window and remembers")
+flush()
+
+print(("\n%d passed, %d failed, %d errors"):format(passed, failed, #ERRORS))
+if failed > 0 or #ERRORS > 0 then error("tests failed") end
