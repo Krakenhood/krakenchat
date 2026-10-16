@@ -15,7 +15,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **History**: messages are kept per character and survive `/reload` and logging out.
 - **Replying**: the bar at the bottom opens the game's own chat input, already set to that stream (`/w Name`, `/p`, `/g`, `/2`, ...).
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
-- **Themes to compare**: `/kc theme 1` lists streams by name (the first draft), `/kc theme 2` shows them as a slim column of square symbols with the chat beside it, `/kc theme 3` the same with round symbols. Names are in the tooltips.
+- **Themes to compare**: `/kc theme 1` lists streams by name (the first draft), `/kc theme 2` shows them as a slim column of square symbols with the chat beside it, `/kc theme 3` the same with round symbols, `/kc theme 4` and `5` the WoW-style frame (gold border, dark stone, fantasy title) with names or symbols. Names are in the tooltips.
 - **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a dot for unread whispers, and a key binding.
 
 ## Install
@@ -31,7 +31,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc font <10-18>` | Text size of the feed |
 | `/kc compact` | Fold the chat in, keeping only the stream list |
 | `/kc side` | Fold the stream list in or out |
-| `/kc theme <1-3>` | Switch the look: 1 names, 2 symbols, 3 round symbols |
+| `/kc theme <1-5>` | Switch the look: 1 names, 2 symbols, 3 round symbols, 4 WoW style, 5 WoW style with symbols |
 | `/kc blizzard` | Hide or show the game's own chat window |
 | `/kc minimap` | Show or hide the minimap button |
 | `/kc demo` | Add or remove sample messages |

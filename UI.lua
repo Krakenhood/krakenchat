@@ -570,7 +570,18 @@ function UI:Create()
         KC:Fire("GEOMETRY")
     end)
 
-    -- backdrop: deep panel, faint teal glow at the top, teal-to-violet rim
+    if KC:Look().palette == "wow" then
+        self:CreateWoWFrame(f)
+    else
+        self:CreateFlatFrame(f)
+    end
+
+    -- header, sidebar, chat
+    self:CreateContent(f)
+end
+
+-- Krakenfriends' look: deep panel, faint teal glow at the top, teal-to-violet rim.
+function UI:CreateFlatFrame(f)
     Solid(f, "BACKGROUND", Theme.bg):SetAllPoints()
     local glow = f:CreateTexture(nil, "BACKGROUND", nil, 1)
     glow:SetPoint("TOPLEFT", 1, -1)
@@ -583,11 +594,51 @@ function UI:Create()
     rim:SetPoint("TOPRIGHT", -1, -1)
     rim:SetHeight(2)
     Gradient(rim, "HORIZONTAL", Theme.accent, 1, Theme.accent2, 1)
+end
 
-    -- header: title, search, close
-    local title = Text(f, 13)
-    title:SetPoint("TOPLEFT", 12, -11)
-    title:SetText("|cff4fd1c5Kraken|rchat")
+-- The game's own look: dark stone inside a gold dialog border, the title in
+-- the fantasy font, a dark band behind the header.
+local WOW_EDGES = { "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", "Interface\\DialogFrame\\UI-DialogBox-Border" }
+local WOW_BACKS = { "Interface\\FrameGeneral\\UI-Background-Rock", "Interface\\DialogFrame\\UI-DialogBox-Background-Dark" }
+
+local function firstFile(list)
+    for _, path in ipairs(list) do
+        if not GetFileIDFromPath or call(GetFileIDFromPath, path) then return path end
+    end
+    return list[#list]
+end
+
+function UI:CreateWoWFrame(f)
+    local frame = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    frame:SetPoint("TOPLEFT", -7, 7)
+    frame:SetPoint("BOTTOMRIGHT", 7, -7)
+    frame:SetFrameLevel(math.max(0, f:GetFrameLevel()))
+    if frame.SetBackdrop then
+        frame:SetBackdrop({
+            bgFile = firstFile(WOW_BACKS), tile = true, tileSize = 256,
+            edgeFile = firstFile(WOW_EDGES), edgeSize = 32,
+            insets = { left = 9, right = 9, top = 9, bottom = 9 },
+        })
+        frame:SetBackdropColor(0.55, 0.55, 0.55, 1)
+    end
+    local band = Solid(f, "BACKGROUND", { 0, 0, 0 }, 0.45)
+    band:SetPoint("TOPLEFT", 2, -2)
+    band:SetPoint("TOPRIGHT", -2, -2)
+    band:SetHeight(HEADER - 2)
+    self.wowFrame = frame
+end
+
+-- The header (title, search, close), the sidebar and the chat.
+function UI:CreateContent(f)
+    local wow = KC:Look().palette == "wow"
+    local title = Text(f, wow and 16 or 13, wow and Theme.accent or nil)
+    title:SetPoint("TOPLEFT", 12, wow and -9 or -11)
+    if wow then
+        if not pcall(title.SetFont, title, "Fonts\\MORPHEUS.TTF", 17, "") then title:SetFont(FONT, 15, "") end
+        title:SetText("KrakenChat")
+    else
+        title:SetText("|cff4fd1c5Kraken|rchat")
+    end
     self.title = title
 
     self.viewTitle = Text(f, 11, Theme.dim)
@@ -1256,6 +1307,8 @@ function UI:SetTheme(n)
     self:SaveGeometry()
     self:RenderSidebar()
     self:RenderFeed()
+    -- a different frame and colours are built at load
+    if KC:Look().palette ~= KC.palette and StaticPopup_Show then StaticPopup_Show("KRAKENCHAT_RELOAD") end
 end
 
 function UI:Select(key)

@@ -205,6 +205,12 @@ function KC:LoadDB()
         -- fixed streams take their label, cap and folding from the current code
         for k, v in pairs(KC.Fixed[key] or {}) do s[k] = v end
     end
+    -- a WoW-style theme swaps the colours before any frame is made
+    local palette = KC.Palettes[KC:Look().palette or ""]
+    if palette then
+        for k, v in pairs(palette) do KC.Theme[k] = v end
+    end
+    self.palette = KC:Look().palette
 end
 
 --------------------------------------------------------------------------------
@@ -230,6 +236,13 @@ end
 --------------------------------------------------------------------------------
 
 if StaticPopupDialogs then
+    StaticPopupDialogs.KRAKENCHAT_RELOAD = {
+        text = "This theme has a different frame and colours.\n\nReload the interface now to see it?",
+        button1 = YES or "Yes",
+        button2 = NO or "No",
+        OnAccept = function() ReloadUI() end,
+        timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+    }
     StaticPopupDialogs.KRAKENCHAT_CLEAR = {
         text = "Clear the whole chat history of this character?\n\nThis cannot be undone.",
         button1 = YES or "Yes",
@@ -245,7 +258,7 @@ local HELP = {
     "|cff4fd1c5/kc font <10-18>|r: text size of the feed",
     "|cff4fd1c5/kc side|r: fold the stream list in or out",
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
-    "|cff4fd1c5/kc theme <1-3>|r: switch the look (1 names, 2 symbols, 3 round symbols)",
+    "|cff4fd1c5/kc theme <1-5>|r: switch the look (1 names, 2 symbols, 3 round, 4 WoW style, 5 WoW style + symbols)",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",

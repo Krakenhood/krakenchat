@@ -69,7 +69,8 @@ local function styleEditBox(box)
             skin[t] = true
             return t
         end
-        local bg = tex("BACKGROUND", Theme.bg, Theme.bg[4])
+        local fill = Theme.input or Theme.bg
+        local bg = tex("BACKGROUND", fill, fill[4])
         bg:SetPoint("TOPLEFT", 0, -2)
         bg:SetPoint("BOTTOMRIGHT", 0, 2)
         local edge = tex("BORDER", Theme.accent, 0.6)

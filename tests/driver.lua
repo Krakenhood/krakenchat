@@ -320,6 +320,13 @@ SlashCmdList.KRAKENCHAT("theme 3")
 check(KC:Look().round, "/kc theme 3: round symbols")
 SlashCmdList.KRAKENCHAT("theme 9")
 check(KC.db.settings.theme == 3, "an unknown theme number changes nothing")
+local popups = #POPUPS
+SlashCmdList.KRAKENCHAT("theme 4")
+check(KC:Look().palette == "wow" and #POPUPS == popups + 1 and POPUPS[#POPUPS].which == "KRAKENCHAT_RELOAD", "/kc theme 4 (WoW look) offers a reload")
+KC.UI:CreateWoWFrame(CreateFrame("Frame"))
+check(#ERRORS == 0, "the WoW-style frame builds")
+SlashCmdList.KRAKENCHAT("theme 5")
+check(KC:Look().palette == "wow" and KC:Look().symbols, "/kc theme 5: WoW look with symbols")
 SlashCmdList.KRAKENCHAT("theme 1")
 check(not KC:Look().symbols and KC.UI.side:GetWidth() == 156, "/kc theme 1 brings the names back")
 

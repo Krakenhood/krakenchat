@@ -126,6 +126,26 @@ KC.Themes = {
     { name = "Names", note = "the first draft: streams listed by name" },
     { name = "Symbols", note = "a slim column of square symbols, names in the tooltips", symbols = true },
     { name = "Round symbols", note = "the same with round symbols", symbols = true, round = true },
+    { name = "Azeroth", note = "a WoW-style frame (gold border, dark stone), streams by name", palette = "wow" },
+    { name = "Azeroth symbols", note = "the WoW-style frame with square symbols", palette = "wow", symbols = true },
+}
+
+-- Colours that replace KC.Theme for a theme with a `palette` (applied at load,
+-- so switching between palettes asks for a /reload).
+KC.Palettes = {
+    wow = {
+        bg      = { 0, 0, 0, 0 },           -- the backdrop draws the background
+        input   = { 0.06, 0.05, 0.04, 0.95 },
+        side    = { 0, 0, 0, 0.35 },
+        panel   = { 0, 0, 0, 0.30 },
+        hover   = { 1, 0.82, 0, 0.10 },
+        line    = { 1, 0.82, 0, 0.22 },
+        accent  = { 1, 0.82, 0 },            -- the game's gold
+        accent2 = { 0.70, 0.08, 0.06 },      -- the red of its buttons
+        text    = { 1, 1, 1 },
+        dim     = { 0.78, 0.72, 0.60 },
+        link    = { 1, 0.82, 0 },
+    },
 }
 
 function KC:Look()
