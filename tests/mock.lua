@@ -169,9 +169,13 @@ end
 ChatFrame1EditBox = CreateFrame("EditBox", "ChatFrame1EditBox", ChatFrame1)
 GeneralDockManager = CreateFrame("Frame", "GeneralDockManager", UIParent)
 function hooksecurefunc(t, name, fn)
+    if type(t) == "string" then t, name, fn = _G, t, name end
     local orig = t[name]
     t[name] = function(...) local r = orig(...); fn(...); return r end
 end
+function ChatEdit_DeactivateChat(box) end
+function ChatEdit_ActivateChat(box) end
+function ChatFrame_DeactivateForTest(box) ChatEdit_DeactivateChat(box) end
 
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 

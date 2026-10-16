@@ -46,6 +46,57 @@ local function editBox()
     return ChatFrame1EditBox
 end
 
+--------------------------------------------------------------------------------
+-- The chat input: in KrakenChat's look, and only there while you type.
+--------------------------------------------------------------------------------
+
+local skin -- our textures on the chat input
+local dimmed = {} -- the game's own textures we made invisible
+
+local function styleEditBox(box)
+    local Theme = KC.Theme
+    for _, region in ipairs({ box:GetRegions() }) do
+        if region.GetObjectType and region:GetObjectType() == "Texture" and not (skin and skin[region]) then
+            dimmed[region] = region:GetAlpha()
+            region:SetAlpha(0)
+        end
+    end
+    if not skin then
+        skin = {}
+        local function tex(layer, c, a)
+            local t = box:CreateTexture(nil, layer)
+            t:SetColorTexture(c[1], c[2], c[3], a)
+            skin[t] = true
+            return t
+        end
+        local bg = tex("BACKGROUND", Theme.bg, Theme.bg[4])
+        bg:SetPoint("TOPLEFT", 0, -2)
+        bg:SetPoint("BOTTOMRIGHT", 0, 2)
+        local edge = tex("BORDER", Theme.accent, 0.6)
+        edge:SetPoint("TOPLEFT", bg, "TOPLEFT")
+        edge:SetPoint("BOTTOMLEFT", bg, "BOTTOMLEFT")
+        edge:SetWidth(2)
+        local line = tex("BORDER", Theme.accent, 0.35)
+        line:SetPoint("BOTTOMLEFT", bg, "BOTTOMLEFT")
+        line:SetPoint("BOTTOMRIGHT", bg, "BOTTOMRIGHT")
+        line:SetHeight(1)
+    end
+    for t in pairs(skin) do t:Show() end
+end
+
+local function unstyleEditBox()
+    for region, alpha in pairs(dimmed) do region:SetAlpha(alpha) end
+    wipe(dimmed)
+    if skin then for t in pairs(skin) do t:Hide() end end
+end
+
+-- Hides the input once you're done typing (the game keeps it on screen otherwise).
+local function tuckAway(box)
+    if not Blizz.active or box ~= editBox() then return end
+    if box.HasFocus and box:HasFocus() then return end
+    box:Hide()
+end
+
 -- Puts the chat input under the KrakenChat window, at least wide enough to type in.
 function Blizz:PlaceEditBox()
     local box, win = editBox(), KC.UI.frame
@@ -76,8 +127,22 @@ function Blizz:Hide()
             self.hooked = true
             -- the game re-anchors the input now and then; put it back when it opens
             box:HookScript("OnShow", function() Blizz:PlaceEditBox() end)
+            box:HookScript("OnEditFocusLost", function(b)
+                if (b:GetText() or "") == "" then tuckAway(b) end
+            end)
+            if hooksecurefunc and ChatEdit_DeactivateChat then
+                hooksecurefunc("ChatEdit_DeactivateChat", tuckAway)
+            end
+            -- and make sure it comes back when you press Enter
+            if hooksecurefunc and ChatEdit_ActivateChat then
+                hooksecurefunc("ChatEdit_ActivateChat", function(b)
+                    if Blizz.active and b == editBox() and not b:IsShown() then b:Show() end
+                end)
+            end
         end
+        styleEditBox(box)
         self:PlaceEditBox()
+        tuckAway(box)
     end
 end
 
@@ -90,6 +155,8 @@ function Blizz:Restore()
     wipe(saved)
     local box = editBox()
     if box and editPoints then
+        unstyleEditBox()
+        box:Show()
         pcall(box.SetParent, box, editPoints.parent or ChatFrame1)
         box:ClearAllPoints()
         for _, p in ipairs(editPoints) do box:SetPoint(unpack(p)) end
