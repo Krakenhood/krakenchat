@@ -478,9 +478,9 @@ function factories.icon(parent)
         GameTooltip:AddLine(self.label or "", 1, 1, 1)
         if self.unread and self.unread > 0 then GameTooltip:AddLine(self.unread .. " unread", 0.55, 0.42, 0.95) end
         local flag = streamFlag(self.key, KC:Stream(self.key))
-        if flag == "hidden" then GameTooltip:AddLine("Hidden in All messages", 0.56, 0.6, 0.66) end
-        if flag == "folded" then GameTooltip:AddLine("Folded in All messages", 0.56, 0.6, 0.66) end
-        if flag == "unfolded" then GameTooltip:AddLine("Not folded in All messages", 0.56, 0.6, 0.66) end
+        if flag == "hidden" then GameTooltip:AddLine('Hidden in "All messages"', 0.56, 0.6, 0.66) end
+        if flag == "folded" then GameTooltip:AddLine('Folded in "All messages"', 0.56, 0.6, 0.66) end
+        if flag == "unfolded" then GameTooltip:AddLine('Not folded in "All messages"', 0.56, 0.6, 0.66) end
         GameTooltip:AddLine("Right-click for options", 0.56, 0.6, 0.66)
         GameTooltip:Show()
     end)
@@ -1318,7 +1318,7 @@ function UI:RefreshHeader()
     local view = KC.db.settings.view
     local s = KC:Stream(view)
     local name = view == "all" and "All messages" or (s and s.label) or ""
-    if KC:IsMuted(view) then name = name .. " (hidden in All messages)" end
+    if KC:IsMuted(view) then name = name .. ' (hidden in "All messages")' end
     self.viewTitle:SetText(name)
     -- with names in the sidebar the open stream is plain to see; with symbols
     -- its name goes in the header (unless the search box is there)
@@ -1619,12 +1619,12 @@ function UI:StreamMenu(anchor, key)
     local muted, folds = KC:IsMuted(key), KC:Folds(s)
     local entries = {
         { header = s.label },
-        { text = muted and "Show in All messages" or "Hide in All messages", func = function()
+        { text = muted and 'Show in "All messages"' or 'Hide in "All messages"', func = function()
             settings.muted[key] = not muted
             UI:RenderSidebar()
             UI:RenderFeed()
         end },
-        { text = folds and "Don't fold in All messages" or "Fold in All messages", func = function()
+        { text = folds and 'Don\'t fold in "All messages"' or 'Fold in "All messages"', func = function()
             settings.fold[key] = not folds
             UI:RenderSidebar()
             UI:RenderFeed()

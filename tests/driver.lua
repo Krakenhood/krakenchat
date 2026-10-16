@@ -254,7 +254,7 @@ check(LINKS[#LINKS] == "item:15210::::", "item links go to the game")
 section("menus")
 KC.UI:StreamMenu(nil, "ch:trade")
 local entries = KC.UI.menuEntries
-check(entries[2].text == "Hide in All messages", "stream menu offers hiding")
+check(entries[2].text == 'Hide in "All messages"', "stream menu offers hiding, with the stream's name in quotes")
 entries[2].func()
 check(KC.db.settings.muted["ch:trade"] == true, "hiding mutes the stream in All messages")
 KC.UI:StreamMenu(nil, "ch:trade")
