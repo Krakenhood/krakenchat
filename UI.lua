@@ -557,8 +557,23 @@ function UI:SaveGeometry()
     win.h = math.floor(f:GetHeight() + 0.5)
 end
 
+-- Keeps the window inside the screen, with room below or above it for the
+-- chat input. A saved size from a bigger screen (or a bad drag) can't stick.
+function UI:FitToScreen()
+    local f = self.frame
+    local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
+    if not (f and sw and sh and sw > 0 and sh > 0) then return end
+    local win = KC.db.settings.window
+    if win.w and win.w > sw - 20 then win.w = math.min(DEFAULT_W, sw - 20) end
+    if win.h and win.h > sh - 60 then win.h = math.min(DEFAULT_H, sh - 60) end
+    local w = math.min(f:GetWidth(), sw - 20)
+    local h = math.min(f:GetHeight(), sh - 60)
+    if w ~= f:GetWidth() or h ~= f:GetHeight() then f:SetSize(w, h) end
+end
+
 function UI:ResetPosition()
     if not self.frame then return end
+    KC.db.settings.window = {}
     self.frame:ClearAllPoints()
     self.frame:SetPoint("CENTER")
     KC.db.settings.chatCollapsed = false
@@ -575,6 +590,7 @@ function UI:Create()
     self.frame = f
     local win = KC.db.settings.window
     f:SetSize(win.w or DEFAULT_W, win.h or DEFAULT_H)
+    self:FitToScreen()
     if win.point then
         f:SetPoint(win.point, UIParent, win.relPoint or win.point, win.x or 0, win.y or 0)
     else
@@ -591,7 +607,9 @@ function UI:Create()
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", function(frame)
         frame:StopMovingOrSizing()
+        UI:FitToScreen()
         UI:SaveGeometry()
+        KC:Fire("GEOMETRY") -- the chat input follows (above the window near the bottom edge)
     end)
     f:SetScript("OnShow", function()
         KC.db.settings.shown = true
@@ -928,6 +946,7 @@ function UI:ApplyChat()
         if f.SetResizeBounds then f:SetResizeBounds(MIN_W, MIN_H) end
         f:SetWidth(math.max(MIN_W, win.w or DEFAULT_W))
     end
+    self:FitToScreen()
     self.chatToggle.arrow.Point(folded and "right" or "left")
     -- folded with symbols, the window is only a column wide: no room for the title
     self.title:SetShown(not (folded and KC:Look().symbols))
@@ -1004,6 +1023,7 @@ function UI:EndResize()
     if not self.resizing then return end
     self.resizing = nil
     self.grip:SetScript("OnUpdate", nil)
+    self:FitToScreen()
     self:SaveGeometry()
     self:RenderFeed()
 end

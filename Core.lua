@@ -322,8 +322,8 @@ function KC:Slash(input)
         self:Print("Minimap button " .. (settings.minimap.hide and "hidden." or "shown."))
     elseif cmd == "demo" then
         self:ToggleDemo()
-    elseif cmd == "resetwindow" then
-        settings.window = {}
+    elseif cmd == "resetwindow" or cmd == "reset" then
+        self.UI:Create()
         self.UI:ResetPosition()
     elseif cmd == "clear" then
         if StaticPopup_Show then StaticPopup_Show("KRAKENCHAT_CLEAR") end

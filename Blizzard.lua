@@ -103,7 +103,13 @@ function Blizz:PlaceEditBox()
     local box, win = editBox(), KC.UI.frame
     if not (self.active and box and win) then return end
     box:ClearAllPoints()
-    box:SetPoint("TOPLEFT", win, "BOTTOMLEFT", 0, -2)
+    local bottom = win:GetBottom()
+    if bottom and bottom < 36 then
+        -- no room below the window: the input goes above it, never off the screen
+        box:SetPoint("BOTTOMLEFT", win, "TOPLEFT", 0, 4)
+    else
+        box:SetPoint("TOPLEFT", win, "BOTTOMLEFT", 0, -2)
+    end
     box:SetWidth(math.max(360, win:GetWidth()))
 end
 

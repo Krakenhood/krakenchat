@@ -226,6 +226,22 @@ function Options:Create()
         w:SetPoint("RIGHT", f, "RIGHT", -16, 0)
         y = y + (e.header and 22 or ROW)
     end
+    -- a way back for a window that ended up too big or out of reach
+    local reset = CreateFrame("Button", nil, f)
+    reset:SetSize(WIDTH - 32, 22)
+    reset:SetPoint("TOPLEFT", 16, -(y + 8))
+    D.Solid(reset, "BACKGROUND", { 0, 0, 0 }, 0.5):SetAllPoints()
+    D.Border(reset, Theme.accent, 0.5)
+    reset.text = D.Text(reset, 12, Theme.accent, "CENTER")
+    reset.text:SetPoint("CENTER", 0, 0)
+    reset.text:SetText("Reset window size and position")
+    reset:SetScript("OnClick", function()
+        KC.UI:Create()
+        KC.UI:ResetPosition()
+    end)
+    self.reset = reset
+    y = y + 38
+
     f:SetSize(WIDTH, y + 16)
 end
 

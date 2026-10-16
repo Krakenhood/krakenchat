@@ -496,6 +496,27 @@ CURSOR = nil
 check(KrakenChatFrame:GetHeight() <= 600, "the window never grows past the bottom of the screen")
 check(KC.db.settings.window.h == KrakenChatFrame:GetHeight(), "the new size is saved")
 KrakenChatFrame:SetSize(w0, h0)
+-- a saved size bigger than the screen (from the old resize bug) is cut down
+KrakenChatFrame:SetSize(3000, 2500)
+KC.db.settings.window.w, KC.db.settings.window.h = 3000, 2500
+KC.UI:FitToScreen()
+check(KrakenChatFrame:GetWidth() <= 1900 and KrakenChatFrame:GetHeight() <= 1020, "a window bigger than the screen is fitted to it, with room for the input")
+check(KC.db.settings.window.w <= 1900 and KC.db.settings.window.h <= 1020, "and the saved size too")
+KC.Options:Create()
+Click(KC.Options.reset)
+check(KrakenChatFrame:GetWidth() == 520 and KrakenChatFrame:GetHeight() == 260 and not KC.db.settings.chatCollapsed, "'Reset window size and position' brings back the default window")
+-- the chat input never ends up below the screen
+local placed
+function ChatFrame1EditBox:SetPoint(p) placed = p end
+function KrakenChatFrame:GetBottom() return 10 end
+KC.Blizzard:PlaceEditBox()
+check(placed == "BOTTOMLEFT", "near the bottom edge, the chat input goes above the window")
+function KrakenChatFrame:GetBottom() return 300 end
+KC.Blizzard:PlaceEditBox()
+check(placed == "TOPLEFT", "otherwise below it")
+ChatFrame1EditBox.SetPoint = nil
+KrakenChatFrame.GetBottom = nil
+KrakenChatFrame:SetSize(w0, h0)
 
 section("opening a stream opens its section")
 KC.db.settings.collapsed.channels = true
