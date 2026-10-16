@@ -117,3 +117,59 @@ KC.Events = {
     RAID_BOSS_EMOTE = { stream = "npc", form = "plain", subst = true },
     RAID_BOSS_WHISPER = { stream = "npc", form = "plain", subst = true },
 }
+
+--------------------------------------------------------------------------------
+-- Themes (/kc theme <n>): layouts to compare side by side.
+--------------------------------------------------------------------------------
+
+KC.Themes = {
+    { name = "Names", note = "the first draft: streams listed by name" },
+    { name = "Symbols", note = "a slim column of square symbols, names in the tooltips", symbols = true },
+    { name = "Round symbols", note = "the same with round symbols", symbols = true, round = true },
+}
+
+function KC:Look()
+    return KC.Themes[self.db.settings.theme] or KC.Themes[1]
+end
+
+--------------------------------------------------------------------------------
+-- Symbols (themes 2 and 3): an icon per stream instead of its name. Each entry
+-- lists candidates; the first one the client has wins, so a renamed file never
+-- shows as a green square.
+--------------------------------------------------------------------------------
+
+local I = "Interface\\Icons\\"
+
+KC.Symbols = {
+    all      = { I .. "INV_Letter_15", I .. "INV_Letter_02" },
+    party    = { I .. "INV_Misc_GroupNeedMore", I .. "Ability_Warrior_BattleShout" },
+    raid     = { I .. "INV_Misc_Head_Dragon_01", I .. "INV_Misc_GroupNeedMore" },
+    instance = { I .. "INV_Misc_Key_03", I .. "INV_Misc_Key_01" },
+    guild    = { I .. "INV_Shirt_GuildTabard_01", I .. "INV_Misc_TabardPVP_01", I .. "INV_Banner_02" },
+    officer  = { I .. "INV_Crown_01", I .. "INV_Helmet_25" },
+    say      = { I .. "Spell_Holy_SpiritualGuidence", I .. "INV_Misc_Note_04" },
+    yell     = { I .. "Ability_Warrior_BattleShout", I .. "Ability_Warrior_RallyingCry" },
+    emote    = { I .. "Ability_Rogue_Disguise", I .. "Spell_Shadow_Charm" },
+    npc      = { I .. "INV_Misc_Head_Orc_01", I .. "INV_Misc_Head_Human_01" },
+    system   = { I .. "INV_Misc_Gear_01", I .. "Trade_Engineering" },
+    loot     = { I .. "INV_Misc_Bag_08", I .. "INV_Misc_Coin_01" },
+    progress = { I .. "Spell_Holy_SurgeOfLight", I .. "Spell_Holy_HolyBolt" },
+    achieve  = { I .. "Achievement_General", I .. "INV_Misc_Token_ArgentCrusade" , I .. "INV_Jewelry_Talisman_07" },
+    crafting = { I .. "Trade_BlackSmithing", I .. "Trade_Tailoring" },
+    addons   = { I .. "INV_Gizmo_02", I .. "Trade_Engineering" },
+    whisper  = { I .. "INV_Letter_02", I .. "INV_Letter_15" },
+    bnet     = { "Interface\\FriendsFrame\\Battlenet-Battleneticon", I .. "INV_Letter_02" },
+    channel  = { I .. "INV_Misc_Note_01", I .. "INV_Scroll_03" },
+    unknown  = { I .. "INV_Misc_QuestionMark" },
+}
+
+-- Channels by their lower-case name without spaces.
+KC.ChannelSymbols = {
+    general          = { I .. "INV_Misc_Map_01", I .. "INV_Misc_Map02" },
+    trade            = { I .. "INV_Misc_Coin_02", I .. "INV_Misc_Coin_01" },
+    lookingforgroup  = { I .. "INV_Misc_GroupLooking", I .. "Spell_Holy_PrayerOfHealing02" },
+    localdefense     = { I .. "INV_Shield_06", I .. "INV_Shield_04" },
+    worlddefense     = { I .. "INV_Shield_06", I .. "INV_Shield_04" },
+    guildrecruitment = { I .. "INV_Scroll_03", I .. "INV_Misc_Note_01" },
+    newcomerchat     = { I .. "INV_Misc_Book_09", I .. "INV_Misc_Book_08" },
+}

@@ -11,6 +11,7 @@ local MIN_W, MIN_H = 360, 140
 local HEADER = 34
 local SIDE_W = 156
 local RAIL_W = 30 -- the sidebar folded in
+local SYMBOL_W = 46 -- the sidebar as a column of symbols (/kc symbols)
 local FOOTER = 26
 local PAD = 10
 local TIME_W = 38
@@ -120,7 +121,60 @@ local function railed()
     return s.sideCollapsed and not s.chatCollapsed
 end
 
-local function sideWidth() return railed() and RAIL_W or SIDE_W end
+local function sideWidth()
+    if railed() then return RAIL_W end
+    return KC:Look().symbols and SYMBOL_W or SIDE_W
+end
+
+--------------------------------------------------------------------------------
+-- Symbols
+--------------------------------------------------------------------------------
+
+local fileCache = {}
+local function resolveFile(path)
+    if not GetFileIDFromPath then return path end
+    local id = fileCache[path]
+    if id == nil then
+        id = call(GetFileIDFromPath, path) or false
+        fileCache[path] = id
+    end
+    return id
+end
+
+local function setFile(tex, candidates)
+    for _, path in ipairs(candidates) do
+        local file = resolveFile(path)
+        if file then
+            tex:SetTexture(file)
+            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            return true
+        end
+    end
+end
+
+-- The symbol of a stream: a class icon for a whisper partner, the channel's own
+-- symbol, or the stream's.
+function UI.SetSymbol(tex, s)
+    if s and s.sec == "conv" and s.class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[s.class] then
+        local c = CLASS_ICON_TCOORDS[s.class]
+        tex:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
+        tex:SetTexCoord(c[1], c[2], c[3], c[4])
+        return
+    end
+    local list
+    if not s then
+        list = KC.Symbols.all
+    elseif s.bn then
+        list = KC.Symbols.bnet
+    elseif s.sec == "conv" then
+        list = KC.Symbols.whisper
+    elseif s.sec == "channels" then
+        list = KC.ChannelSymbols[(s.label or ""):lower():gsub("%s", "")] or KC.Symbols.channel
+    else
+        list = KC.Symbols[s.key] or KC.Symbols.unknown
+    end
+    if not setFile(tex, list) then setFile(tex, KC.Symbols.unknown) end
+end
 
 --------------------------------------------------------------------------------
 -- Replying: opens the game's chat input set up for the stream.
@@ -329,14 +383,75 @@ function factories.stream(parent)
     w.label:SetPoint("RIGHT", w.badge, "LEFT", -4, 0)
     w:SetScript("OnEnter", function(self) self.hl:Show() end)
     w:SetScript("OnLeave", function(self) self.hl:Hide() end)
-    w:SetScript("OnClick", function(self, button)
-        if button == "RightButton" then
-            if self.key ~= "all" then UI:StreamMenu(self, self.key) end
-        else
-            UI:Select(self.key)
-            if KC.db.settings.chatCollapsed then UI:ToggleChat() end
-        end
+    w:SetScript("OnClick", factories.streamClick)
+    return w
+end
+
+function factories.streamClick(self, button)
+    if button == "RightButton" then
+        if self.key ~= "all" then UI:StreamMenu(self, self.key) end
+    else
+        UI:Select(self.key)
+        if KC.db.settings.chatCollapsed then UI:ToggleChat() end
+    end
+end
+
+-- A stream as a symbol, for /kc symbols. The name is in the tooltip.
+function factories.icon(parent)
+    local w = CreateFrame("Button", nil, parent)
+    w:SetSize(SYMBOL_W, 34)
+    w:RegisterForClicks("AnyUp")
+    w.hl = Solid(w, "BACKGROUND", Theme.hover)
+    w.hl:SetPoint("TOPLEFT", 4, -1)
+    w.hl:SetPoint("BOTTOMRIGHT", -4, 1)
+    w.hl:Hide()
+    w.stripe = Solid(w, "ARTWORK", Theme.accent)
+    w.stripe:SetPoint("LEFT", 0, 0)
+    w.stripe:SetSize(2, 22)
+    w.ring = Solid(w, "BORDER", Theme.accent, 0.9)
+    w.ring:SetSize(30, 30)
+    w.ring:SetPoint("CENTER", 1, 0)
+    w.icon = w:CreateTexture(nil, "ARTWORK")
+    w.icon:SetSize(26, 26)
+    w.icon:SetPoint("CENTER", 1, 0)
+    -- round themes: a circle mask on the symbol and its ring
+    w.mask = w:CreateMaskTexture()
+    w.mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    w.mask:SetAllPoints(w.icon)
+    w.ringMask = w:CreateMaskTexture()
+    w.ringMask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    w.ringMask:SetAllPoints(w.ring)
+    w.badge = CreateFrame("Frame", nil, w)
+    w.badge:SetSize(16, 12)
+    w.badge:SetPoint("TOPRIGHT", -3, -1)
+    w.badge:SetFrameLevel(w:GetFrameLevel() + 3)
+    Solid(w.badge, "OVERLAY", Theme.accent2):SetAllPoints()
+    w.count = Text(w.badge, 8, Theme.text, "CENTER")
+    w.count:SetPoint("CENTER", 0, 0)
+    w:SetScript("OnEnter", function(self)
+        self.hl:Show()
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(self.label or "", 1, 1, 1)
+        if self.unread and self.unread > 0 then GameTooltip:AddLine(self.unread .. " unread", 0.55, 0.42, 0.95) end
+        if self.muted then GameTooltip:AddLine("Hidden in All messages", 0.56, 0.6, 0.66) end
+        GameTooltip:AddLine("Right-click for options", 0.56, 0.6, 0.66)
+        GameTooltip:Show()
     end)
+    w:SetScript("OnLeave", function(self)
+        self.hl:Hide()
+        GameTooltip:Hide()
+    end)
+    w:SetScript("OnClick", factories.streamClick)
+    return w
+end
+
+function factories.sep(parent)
+    local w = CreateFrame("Frame", nil, parent)
+    w:SetSize(SYMBOL_W, 9)
+    local line = Solid(w, "ARTWORK", Theme.line)
+    line:SetHeight(1)
+    line:SetPoint("LEFT", 10, 0)
+    line:SetPoint("RIGHT", -8, 0)
     return w
 end
 
@@ -473,6 +588,7 @@ function UI:Create()
     local title = Text(f, 13)
     title:SetPoint("TOPLEFT", 12, -11)
     title:SetText("|cff4fd1c5Kraken|rchat")
+    self.title = title
 
     self.viewTitle = Text(f, 11, Theme.dim)
     self.viewTitle:SetPoint("LEFT", title, "RIGHT", 10, -1)
@@ -650,6 +766,8 @@ function UI:ApplySide()
     local collapsed = railed()
     local w = sideWidth()
     self.sideBg:SetWidth(w)
+    self.side:SetWidth(w)
+    self.sideChild:SetWidth(w)
     self.sideLine:ClearAllPoints()
     self.sideLine:SetPoint("TOPLEFT", w + 1, -HEADER - 1)
     self.sideLine:SetPoint("BOTTOMLEFT", w + 1, 1)
@@ -671,7 +789,7 @@ local CHAT_PARTS = { "scroll", "track", "thumb", "empty", "footer", "search", "v
 function UI:ApplyChat()
     local f, folded = self.frame, KC.db.settings.chatCollapsed and true or false
     local win = KC.db.settings.window
-    local narrow = SIDE_W + 2
+    local narrow = sideWidth() + 2
     for _, key in ipairs(CHAT_PARTS) do self[key]:SetShown(not folded) end
     if folded then
         self.pill:Hide()
@@ -682,6 +800,8 @@ function UI:ApplyChat()
         f:SetWidth(math.max(MIN_W, win.w or DEFAULT_W))
     end
     self.chatToggle.arrow.Point(folded and "right" or "left")
+    -- folded with symbols, the window is only a column wide: no room for the title
+    self.title:SetShown(not (folded and KC:Look().symbols))
     self:ApplySide()
 end
 
@@ -1013,7 +1133,8 @@ function UI:RenderSidebar()
         return
     end
     self:UpdateRail()
-    release({ "section", "stream" })
+    release({ "section", "stream", "icon", "sep" })
+    if KC:Look().symbols then return self:RenderSymbols() end
     local child = self.sideChild
     local y = 6
 
@@ -1063,6 +1184,78 @@ function UI:RenderSidebar()
         end
     end
     child:SetHeight(y + 6)
+end
+
+local function fillIcon(w, key, label, s)
+    local selected = KC.db.settings.view == key
+    w.key, w.label = key, label
+    w.unread = s and s.unread or 0
+    w.muted = key ~= "all" and KC:IsMuted(key)
+    w.stripe:SetShown(selected)
+    w.ring:SetShown(selected)
+    UI.SetSymbol(w.icon, s)
+    local round = KC:Look().round and true or false
+    if w.round ~= round then
+        w.round = round
+        if round then
+            w.icon:AddMaskTexture(w.mask)
+            w.ring:AddMaskTexture(w.ringMask)
+        else
+            w.icon:RemoveMaskTexture(w.mask)
+            w.ring:RemoveMaskTexture(w.ringMask)
+        end
+    end
+    if w.icon.SetDesaturated then w.icon:SetDesaturated(w.muted) end
+    w.icon:SetAlpha(w.muted and 0.45 or 1)
+    w.badge:SetShown(w.unread > 0)
+    w.count:SetText(w.unread > 99 and "99" or tostring(w.unread))
+end
+
+-- The sidebar as one column of symbols, sections apart by a thin line.
+function UI:RenderSymbols()
+    local child = self.sideChild
+    local y = 6
+    local w = acquire("icon", child)
+    w:SetPoint("TOPLEFT", 0, -y)
+    fillIcon(w, "all", "All messages", nil)
+    y = y + 34
+
+    local bySection = {}
+    for _, s in pairs(KC.char.streams) do
+        if s.sec and #s.msgs > 0 then
+            bySection[s.sec] = bySection[s.sec] or {}
+            table.insert(bySection[s.sec], s)
+        end
+    end
+    for _, sec in ipairs(KC.Sections) do
+        local list = bySection[sec.id]
+        if list then
+            sortStreams(sec.id, list)
+            local line = acquire("sep", child)
+            line:SetPoint("TOPLEFT", 0, -y)
+            y = y + 9
+            for _, s in ipairs(list) do
+                local row = acquire("icon", child)
+                row:SetPoint("TOPLEFT", 0, -y)
+                fillIcon(row, s.key, s.label, s)
+                y = y + 34
+            end
+        end
+    end
+    child:SetHeight(y + 6)
+end
+
+-- Switching themes opens the chat, so the new look shows in full.
+function UI:SetTheme(n)
+    local settings = KC.db.settings
+    if settings.chatCollapsed then self:SaveGeometry() end
+    settings.theme = n
+    settings.chatCollapsed = false
+    if not self.frame:IsShown() then self.frame:Show() end
+    self:ApplyChat()
+    self:SaveGeometry()
+    self:RenderSidebar()
+    self:RenderFeed()
 end
 
 function UI:Select(key)

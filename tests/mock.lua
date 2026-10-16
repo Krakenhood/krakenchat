@@ -69,6 +69,7 @@ function Object:RegisterEvent(e)
 end
 function Object:UnregisterEvent(e) self._events[e] = nil end
 function Object:CreateTexture() return new("Texture", self) end
+function Object:CreateMaskTexture() return new("MaskTexture", self) end
 function Object:CreateFontString() local fs = new("FontString", self); rawset(fs, "_text", ""); return fs end
 function Object:GetParent() return self._parent end
 function Object:SetParent(p) rawset(self, "_parent", p) end
@@ -87,6 +88,7 @@ function Object:GetCenter() return 100, 100 end
 function Object:GetEffectiveScale() return 1 end
 function Object:GetFrameLevel() return 1 end
 function Object:SetFont() return true end
+function Object:SetTexture(f) rawset(self, "_file", f) end
 
 function CreateFrame(kind, name, parent)
     local f = new(kind or "Frame", parent)

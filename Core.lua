@@ -184,6 +184,7 @@ local DEFAULTS = {
         sideCollapsed = nil,   -- true: the whole sidebar is folded into a slim rail
         chatCollapsed = true,  -- the chat is folded in, the window shows only the stream list
         hideBlizzard = true,   -- the game's own chat windows are hidden
+        theme = 1,             -- see KC.Themes
         muted = {},            -- stream key -> true: left out of "All messages"
         fold = {},             -- stream key -> true/false: overrides the default folding in "All messages"
         minimap = { angle = 225, hide = false },
@@ -244,6 +245,7 @@ local HELP = {
     "|cff4fd1c5/kc font <10-18>|r: text size of the feed",
     "|cff4fd1c5/kc side|r: fold the stream list in or out",
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
+    "|cff4fd1c5/kc theme <1-3>|r: switch the look (1 names, 2 symbols, 3 round symbols)",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",
@@ -274,6 +276,17 @@ function KC:Slash(input)
         self.UI:Create()
         if not self.UI.frame:IsShown() then self.UI:Show() end
         self.UI:ToggleChat()
+    elseif cmd == "theme" or cmd == "symbols" or cmd == "symbol" then
+        local n = tonumber(rest)
+        if cmd ~= "theme" then n = (settings.theme or 1) == 1 and 2 or 1 end
+        if not (n and KC.Themes[n]) then
+            self:Print("themes (you have " .. (settings.theme or 1) .. "):")
+            for i, t in ipairs(KC.Themes) do DEFAULT_CHAT_FRAME:AddMessage(("   |cff4fd1c5/kc theme %d|r: %s, %s"):format(i, t.name, t.note)) end
+            return
+        end
+        self.UI:Create()
+        self.UI:SetTheme(n)
+        self:Printf("Theme %d: %s.", n, KC.Themes[n].name)
     elseif cmd == "blizzard" then
         settings.hideBlizzard = not settings.hideBlizzard
         self.Blizzard:Apply()
