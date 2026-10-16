@@ -114,6 +114,9 @@ end
 
 local function fontSize() return KC.db.settings.fontSize or 12 end
 
+-- for the settings window
+UI.Draw = { Solid = Solid, Text = Text, Border = Border, Strokes = Strokes, rgb = rgb }
+
 -- The sidebar is folded into the rail only while the chat is out: with the
 -- chat folded in, the stream list is all there is.
 local function railed()
@@ -625,7 +628,7 @@ function UI:CreateWoWFrame(f)
     band:SetPoint("TOPLEFT", 2, -2)
     band:SetPoint("TOPRIGHT", -2, -2)
     band:SetHeight(HEADER - 2)
-    self.wowFrame = frame
+    return frame
 end
 
 -- The header (title, search, close), the sidebar and the chat.
@@ -670,7 +673,28 @@ function UI:CreateContent(f)
     chatToggle:SetScript("OnClick", function() UI:ToggleChat() end)
     self.chatToggle = chatToggle
 
-    self:CreateSearch(f, chatToggle, title)
+    local gear = CreateFrame("Button", nil, f)
+    gear:SetSize(18, 18)
+    gear:SetPoint("RIGHT", chatToggle, "LEFT", -2, 0)
+    gear.icon = gear:CreateTexture(nil, "ARTWORK")
+    gear.icon:SetSize(14, 14)
+    gear.icon:SetPoint("CENTER")
+    gear.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+    gear.icon:SetVertexColor(rgb(Theme.dim))
+    gear:SetScript("OnEnter", function(self)
+        self.icon:SetVertexColor(rgb(Theme.text))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Settings", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    gear:SetScript("OnLeave", function(self)
+        self.icon:SetVertexColor(rgb(Theme.dim))
+        GameTooltip:Hide()
+    end)
+    gear:SetScript("OnClick", function() KC.Options:Toggle() end)
+    self.gear = gear
+
+    self:CreateSearch(f, gear, title)
 
     local headLine = Solid(f, "ARTWORK", Theme.line)
     headLine:SetHeight(1)
@@ -1211,6 +1235,7 @@ function UI:RefreshHeader()
     local folded = KC.db.settings.chatCollapsed
     self.viewTitle:SetShown(not folded and KC:Look().symbols and not self.search:IsShown())
     self.glass:SetShown(not folded)
+    self.gear:SetShown(not folded)
     local reply = self:ReplyText(view)
     self.footer:SetShown(reply ~= nil and not folded)
     if reply then self.footer.text:SetText(reply) end

@@ -36,7 +36,7 @@ local function showTooltip(self)
         GameTooltip:AddLine("No unread whispers.", 0.7, 0.7, 0.7)
     end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Click: open or close   Drag: move", 0.5, 0.5, 0.5)
+    GameTooltip:AddLine("Click: open or close   Right-click: settings   Drag: move", 0.5, 0.5, 0.5)
     GameTooltip:Show()
 end
 
@@ -75,7 +75,9 @@ local function createButton()
     button.pip:SetPoint("BOTTOMRIGHT", -6, 6)
     button.pip:SetColorTexture(Theme.accent2[1], Theme.accent2[2], Theme.accent2[3], 1)
 
-    button:SetScript("OnClick", function() KC.UI:Toggle() end)
+    button:SetScript("OnClick", function(_, which)
+        if which == "RightButton" then KC.Options:Toggle() else KC.UI:Toggle() end
+    end)
     button:SetScript("OnDragStart", function(self)
         GameTooltip:Hide()
         self:SetScript("OnUpdate", function()

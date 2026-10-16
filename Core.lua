@@ -267,7 +267,7 @@ local HELP = {
     "|cff4fd1c5/kc side|r: fold the stream list in or out",
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
     "|cff4fd1c5/kc symbols|r: sidebar as symbols or names (|cff4fd1c5/kc symbols round|r for round ones)",
-    "|cff4fd1c5/kc style|r: WoW style or the flat teal look",
+    "|cff4fd1c5/kc settings|r: open the settings window",
     "|cff4fd1c5/kc theme <1-5>|r: both at once, to compare (1 teal names, 2 teal symbols, 3 teal round, 4 WoW names, 5 WoW symbols)",
     "|cff4fd1c5/kc whisperopen|r: whether a whisper unfolds the folded-in chat",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
@@ -316,8 +316,13 @@ function KC:Slash(input)
         self.UI:SetLook(settings.style, sidebar)
         self:Print(sidebar == "text" and "Sidebar: names." or "Sidebar: symbols (names are in the tooltips).")
     elseif cmd == "style" then
+        -- the WoW style is the look; teal is an alternative you ask for by name
+        local style = (rest == "teal" or rest == "flat") and "flat" or (rest == "wow" and "wow") or nil
+        if not style then return self:Print("|cff4fd1c5/kc style teal|r for the alternative teal look, |cff4fd1c5/kc style wow|r for the standard one.") end
         self.UI:Create()
-        self.UI:SetLook(settings.style == "flat" and "wow" or "flat", settings.sidebar)
+        self.UI:SetLook(style, settings.sidebar)
+    elseif cmd == "settings" or cmd == "options" or cmd == "config" then
+        self.Options:Toggle()
     elseif cmd == "whisperopen" then
         settings.openOnWhisper = not settings.openOnWhisper
         self:Print("A whisper " .. (settings.openOnWhisper and "unfolds the chat." or "no longer unfolds the chat."))

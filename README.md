@@ -15,7 +15,8 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **History**: messages are kept per character and survive `/reload` and logging out.
 - **Replying**: the bar at the bottom opens the game's own chat input, already set to that stream (`/w Name`, `/p`, `/g`, `/2`, ...).
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
-- **WoW style**: a gold border around dark stone and the title in the game's fantasy font, by default. `/kc style` switches to the flat teal look of the first draft.
+- **WoW style**: a gold border around dark stone and the title in the game's fantasy font. A flat teal look is there as an alternative (`/kc style teal`, or in the settings).
+- **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for unfolding the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps, the minimap button and the teal style, plus the text size.
 - **Names or symbols**: the button at the bottom of the sidebar (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. `/kc symbols round` makes them round. `/kc theme 1` to `5` sets style and sidebar together, for comparing.
 - **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a dot for unread whispers, and a key binding.
 
@@ -33,7 +34,8 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc compact` | Fold the chat in, keeping only the stream list |
 | `/kc side` | Fold the stream list in or out |
 | `/kc symbols` | Sidebar as symbols or names (`/kc symbols round` for round symbols) |
-| `/kc style` | WoW style or the flat teal look |
+| `/kc settings` | Open the settings window |
+| `/kc style teal` | The alternative teal look (`/kc style wow` for the standard one) |
 | `/kc theme <1-5>` | Both at once: 1 teal names, 2 teal symbols, 3 teal round, 4 WoW names, 5 WoW symbols |
 | `/kc whisperopen` | Whether a whisper unfolds the folded-in chat |
 | `/kc blizzard` | Hide or show the game's own chat window |
