@@ -173,9 +173,12 @@ local I = "Interface\\Icons\\"
 
 -- KrakenChat's own icon (the kraken with a speech bubble), shipped in Media\.
 KC.IconFile = "Interface\\AddOns\\KrakenChat\\Media\\icon"
+-- The same without its own rim and zoomed in, for places that draw their own
+-- ring (the minimap button, round symbols).
+KC.IconFileBare = "Interface\\AddOns\\KrakenChat\\Media\\minimap"
 
 KC.Symbols = {
-    all      = { KC.IconFile, I .. "INV_Letter_15" },
+    all      = { KC.IconFileBare, I .. "INV_Letter_15" },
     party    = { I .. "INV_Misc_GroupNeedMore", I .. "Ability_Warrior_BattleShout" },
     raid     = { I .. "INV_Misc_Head_Dragon_01", I .. "INV_Misc_GroupNeedMore" },
     instance = { I .. "INV_Misc_Key_03", I .. "INV_Misc_Key_01" },

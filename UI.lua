@@ -160,7 +160,7 @@ local function setFile(tex, candidates)
         if file then
             tex:SetTexture(file)
             -- game icons have a border to crop; our own icon doesn't
-            if path == KC.IconFile then tex:SetTexCoord(0, 1, 0, 1) else tex:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
+            if path:find("^Interface\\AddOns\\") then tex:SetTexCoord(0, 1, 0, 1) else tex:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
             return true
         end
     end

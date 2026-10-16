@@ -58,7 +58,7 @@ local function createButton()
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
     icon:SetPoint("TOPLEFT", 7, -6)
-    icon:SetTexture(KC.IconFile)
+    icon:SetTexture(KC.IconFileBare)
     -- round like the other minimap buttons
     local mask = button:CreateMaskTexture()
     mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")

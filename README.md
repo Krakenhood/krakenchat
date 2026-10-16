@@ -22,7 +22,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 
 ## Icon
 
-`assets/krakenchat-icon.svg` is the source of the icon: the Krakenfriends kraken holding up a speech bubble, on dark stone with a gold rim like the window. `Media/icon.tga` (64x64) is the game texture made from it, used for the minimap button, the addon list and "All messages"; `assets/krakenchat-icon-512.png` is the large version, for CurseForge.
+`assets/krakenchat-icon.svg` is the source of the icon: the Krakenfriends kraken holding up a speech bubble, on dark stone with a gold rim like the window. `Media/icon.tga` (64x64) is the game texture made from it, for the addon list; `Media/minimap.tga` comes from `assets/krakenchat-minimap.svg`, the same without its own rim and zoomed in, for the minimap button and the "All messages" symbol, which draw their own ring; `assets/krakenchat-icon-512.png` is the large version, for CurseForge.
 
 ## Install
 
