@@ -15,15 +15,18 @@ KC.Theme = {
 }
 
 --------------------------------------------------------------------------------
--- Sidebar sections. `personal` sections count unread messages; channels and
--- game messages are too busy for that to mean anything.
+-- Sidebar sections. `personal` sections count unread messages with a badge
+-- (red for whispers, dark gold for group and guild). `quiet` ones count them
+-- with a small grey number (settings: quietCounts), and not while "All
+-- messages" is on screen, where those lines are seen anyway. Game messages
+-- are never counted.
 --------------------------------------------------------------------------------
 
 KC.Sections = {
     { id = "conv", label = "Conversations", personal = true },
     { id = "group", label = "Group & Guild", personal = true },
-    { id = "near", label = "Nearby" },
-    { id = "channels", label = "Channels" },
+    { id = "near", label = "Nearby", quiet = true },
+    { id = "channels", label = "Channels", quiet = true },
     { id = "game", label = "Game" },
 }
 

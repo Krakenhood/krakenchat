@@ -451,6 +451,32 @@ KC.UI:ToggleChat()
 check(not KC.UI.pill:IsShown() and KC.UI.atBottom, "unfolding opens at the bottom, no banner")
 KC.UI:Select("all")
 
+section("quiet counts")
+KC.UI:Select("guild")
+Say("SAY", "anyone near?", "Pip")
+Say("CHANNEL", "LFG RFC", "Mist", nil, { channel = "1. General - Durotar", index = 1, base = "General - Durotar" })
+check(S("say").unread == 1 and S("ch:general").unread == 1, "Say and channels count new lines")
+local qt, qf = CreateFrame("Frame"):CreateTexture(), CreateFrame("Frame"):CreateFontString()
+KC.UI.PaintBadge(qt, qf, "quiet")
+check(qt._color[4] == 0, "as a quiet count: no box, just a number")
+Say("LOOT", "You receive loot: [Linen Cloth].")
+check(S("loot").unread == 0, "game messages never count")
+KC.UI:Select("all")
+check(S("say").unread == 0 and S("ch:general").unread == 0, "All messages on screen: Say and channels are read")
+Say("SAY", "hello?", "Pip")
+check(S("say").unread == 0, "and stay read while you watch All messages")
+KC.db.settings.muted["ch:general"] = true
+Say("CHANNEL", "LFG RFC", "Mist2", nil, { channel = "1. General - Durotar", index = 1, base = "General - Durotar" })
+check(S("ch:general").unread == 1, "a channel hidden from All messages still counts there")
+KC.db.settings.muted["ch:general"] = false
+KC:MarkRead("ch:general")
+KC.db.settings.quietCounts = false
+KC.UI:Select("guild")
+Say("SAY", "hi", "Pip")
+check(S("say").unread == 0, "switched off in the settings: no quiet counts")
+KC.db.settings.quietCounts = true
+KC.UI:Select("all")
+
 section("opening a stream opens its section")
 KC.db.settings.collapsed.channels = true
 KC.UI:Select("ch:trade")

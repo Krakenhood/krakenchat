@@ -32,6 +32,20 @@ local ENTRIES = {
         set = function(v) settings().openOnWhisper = v end,
     },
     {
+        label = "Count new lines in Say, Yell and channels",
+        get = function() return settings().quietCounts end,
+        set = function(v)
+            settings().quietCounts = v
+            if not v then
+                for _, s in pairs(KC.char.streams) do
+                    local sec = KC:SectionOf(s)
+                    if sec and sec.quiet then s.unread = 0 end
+                end
+                KC:Fire("UNREAD")
+            end
+        end,
+    },
+    {
         label = "Hide the game's own chat window",
         get = function() return settings().hideBlizzard end,
         set = function(v)

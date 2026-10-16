@@ -16,7 +16,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **Replying**: the bar at the bottom opens the game's own chat input, already set to that stream (`/w Name`, `/p`, `/g`, `/2`, ...).
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
 - **WoW style**: a gold border around dark stone and the title in the game's fantasy font.
-- **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, hiding the game's chat window, symbols, round symbols, timestamps and the minimap button, plus the text size and the background's opacity.
+- **Settings window**: the gear in the header, right-click on the minimap button or `/kc settings`. Tick boxes for opening the chat on a whisper, quiet counts for Say, Yell and channels, hiding the game's chat window, symbols, round symbols, timestamps and the minimap button, plus the text size and the background's opacity.
 - **Names or symbols**: a tick box in the settings (or `/kc symbols`) shows the streams as a slim column of symbols instead of names: coins for Trade, a map for General, class icons for whisper partners. Names are in the tooltips. Say, Yell and Emotes share the game's speech bubble in their chat colours. Round symbols are a tick box (or `/kc symbols round`) away.
 - **Day lines**, timestamps, adjustable text size, a movable and resizable window, a minimap button with a round badge counting unread whispers, and a key binding.
 
@@ -49,7 +49,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 ## How it works
 
 - **Streams**: each kind of chat is a stream. Whispers get one stream per person, channels one per channel (all zones' "General" share one). Streams appear in the sidebar once something is said in them.
-- **Unread**: conversations, group and guild streams count unread messages. Channels and game messages don't, they're too busy for a count to mean anything. A stream is read when it's open and scrolled to the bottom.
+- **Unread**: whispers get a red badge, group and guild chat a dark-gold one. Say, Yell, Emotes and channels get a quiet count, a small grey number without a box, and don't count while "All messages" is on screen, where you see their lines anyway (a tick box in the settings switches quiet counts off). Game messages never count. A stream is read when it's open and scrolled to the bottom.
 - **Reading back**: scroll up and the feed stays where you are; new messages are counted in a "new messages" bar that brings you back down. Shift + mouse wheel jumps to the end.
 - **How much is kept**: up to 300 messages per conversation, 400 in Party, Raid and Guild, 250 per channel and fewer for game messages. A view shows the latest 300 messages.
 

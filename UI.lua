@@ -115,11 +115,23 @@ end
 local function fontSize() return KC.db.settings.fontSize or 12 end
 
 -- Unread badges: red for whispers (meant for you), a calm dark gold for group
--- and guild chat, so a whisper stands out.
-local function paintBadge(bg, count, whisper)
-    local c = whisper and Theme.accent2 or Theme.calm
+-- and guild chat, so a whisper stands out; for Say, Yell and channels only a
+-- small grey number ("quiet").
+local function paintBadge(bg, count, kind)
+    if kind == "quiet" then
+        bg:SetColorTexture(0, 0, 0, 0)
+        count:SetTextColor(rgb(Theme.dim))
+        return
+    end
+    local c = kind and Theme.accent2 or Theme.calm
     bg:SetColorTexture(c[1], c[2], c[3], 1)
-    count:SetTextColor(rgb(whisper and Theme.text or Theme.accent))
+    count:SetTextColor(rgb(kind and Theme.text or Theme.accent))
+end
+
+local function badgeKind(s)
+    if s.sec == "conv" then return true end
+    local sec = KC:SectionOf(s)
+    return (sec and sec.quiet) and "quiet" or false
 end
 UI.PaintBadge = paintBadge
 
@@ -1291,7 +1303,7 @@ local function fillStream(w, key, label, s)
     local unread = s and s.unread or 0
     w.badge:SetShown(unread > 0)
     w.count:SetText(unread > 99 and "99+" or tostring(unread))
-    if unread > 0 then paintBadge(w.badgeBg, w.count, s.sec == "conv") end
+    if unread > 0 then paintBadge(w.badgeBg, w.count, badgeKind(s)) end
 end
 
 function UI:RenderSidebar()
@@ -1332,7 +1344,7 @@ function UI:RenderSidebar()
             local unread = 0
             for _, s in ipairs(list) do unread = unread + s.unread end
             if collapsed[sec.id] and unread > 0 then
-                h.extra:SetText(KC.Colorize(tostring(unread), rgb(sec.id == "conv" and { 1, 0.3, 0.25 } or Theme.accent)))
+                h.extra:SetText(KC.Colorize(tostring(unread), rgb((sec.id == "conv" and { 1, 0.3, 0.25 }) or (sec.quiet and Theme.dim) or Theme.accent)))
             elseif sec.id == "conv" then
                 h.extra:SetText(KC.db.settings.sort == "name" and "a-z" or "recent")
             else
@@ -1376,7 +1388,7 @@ local function fillIcon(w, key, label, s)
     w.icon:SetAlpha(w.muted and 0.45 or 1)
     w.badge:SetShown(w.unread > 0)
     w.count:SetText(w.unread > 99 and "99" or tostring(w.unread))
-    if w.unread > 0 then paintBadge(w.badgeBg, w.count, s.sec == "conv") end
+    if w.unread > 0 then paintBadge(w.badgeBg, w.count, badgeKind(s)) end
 end
 
 -- The sidebar as one column of symbols, sections apart by a thin line.

@@ -56,6 +56,19 @@ function KC:IsViewing(key)
 end
 
 function KC:MarkRead(key)
+    if key == "all" then
+        -- "All messages" on screen: the quiet streams' lines are seen there
+        local changed = false
+        for k, s in pairs(self.char.streams) do
+            local sec = self:SectionOf(s)
+            if sec and sec.quiet and s.unread > 0 and not self:IsMuted(k) then
+                s.unread = 0
+                changed = true
+            end
+        end
+        if changed then self:Fire("UNREAD") end
+        return
+    end
     local s = self.char.streams[key]
     if s and s.unread > 0 then
         s.unread = 0
@@ -152,7 +165,10 @@ function KC:Add(s, msg)
     s.last = msg.t
 
     local section = self:SectionOf(s)
-    if section and section.personal and not msg.o and not self:IsViewing(s.key) and not self.demoing then
+    local counts = section and (section.personal
+        or (section.quiet and self.db.settings.quietCounts
+            and not (self:IsViewing("all") and not self:IsMuted(s.key)) or false))
+    if counts and not msg.o and not self:IsViewing(s.key) and not self.demoing then
         s.unread = s.unread + 1
         self:Fire("UNREAD")
     end
