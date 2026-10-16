@@ -167,14 +167,14 @@ function KC:SectionOf(s)
 end
 
 -- Turns one CHAT_MSG_ event into a message in its stream.
-function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, chanBase, _, _, guid, bnID)
+function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, chanBase, _, lineID, guid, bnID)
     local ctype = event:sub(10) -- "CHAT_MSG_PARTY" -> "PARTY"
     local def = KC.Events[ctype]
     if not def or not self.char or not self.me then return end
 
     local secret = KC.IsSecret(text)
-    sender, channel, target, chanIndex, chanBase, guid, bnID =
-        clean(sender), clean(channel), clean(target), clean(chanIndex), clean(chanBase), clean(guid), clean(bnID)
+    sender, channel, target, chanIndex, chanBase, guid, bnID, lineID =
+        clean(sender), clean(channel), clean(target), clean(chanIndex), clean(chanBase), clean(guid), clean(bnID), clean(lineID)
     if not secret and type(text) ~= "string" then return end
     if type(sender) ~= "string" then sender = nil end
     if sender == "" then sender = nil end
@@ -183,6 +183,11 @@ function KC:Capture(event, text, sender, _, channel, target, _, _, chanIndex, ch
     if secret then msg.secret = true end
     msg.x = text
     if def.leader then msg.ld = true end
+    -- for the game's own player links: the full name and the line (Report needs it)
+    if sender and def.stream ~= "bnet" and def.stream ~= "npc" and def.form ~= "plain" then
+        msg.p = sender
+        if type(lineID) == "number" then msg.li = lineID end
+    end
     if def.warning then msg.w = true end
     if def.subst and not secret and sender and text:find("%s", 1, true) then
         msg.x = text:gsub("%%s", (sender:gsub("%%", "%%%%")), 1)

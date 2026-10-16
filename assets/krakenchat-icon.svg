@@ -8,16 +8,21 @@
     <linearGradient id="arm" x1="0" y1="1" x2="1" y2="0">
       <stop offset="0" stop-color="#2aa6a0"/><stop offset="1" stop-color="#7c5be0"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.45" cy="0.55" r="0.7">
-      <stop offset="0" stop-color="#1f3b4d"/><stop offset="1" stop-color="#0b1220"/>
+    <radialGradient id="glow" cx="0.45" cy="0.42" r="0.7">
+      <stop offset="0" stop-color="#4a4036"/><stop offset="0.65" stop-color="#2a241e"/><stop offset="1" stop-color="#14110e"/>
     </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f5d77a"/><stop offset="0.5" stop-color="#c99a2e"/><stop offset="1" stop-color="#7a5714"/>
+    </linearGradient>
     <linearGradient id="bubble" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#fff8e1"/><stop offset="1" stop-color="#f1dfae"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" fill="url(#glow)"/>
-  <!-- waves -->
-  <path d="M0 450 Q64 428 128 450 T256 450 T384 450 T512 450 V512 H0Z" fill="#0f2a3a"/>
+  <!-- WoW style: dark stone, a few worn patches -->
+  <g fill="#000" fill-opacity=".18">
+    <ellipse cx="120" cy="420" rx="120" ry="40"/><ellipse cx="400" cy="300" rx="70" ry="30"/><ellipse cx="300" cy="460" rx="90" ry="26"/>
+  </g>
   <!-- the scene, scaled so it fits inside the round minimap mask -->
   <g transform="translate(256 262) scale(0.74) translate(-258 -268)">
   <!-- tentacles below the head -->
@@ -43,4 +48,8 @@
   <!-- smile -->
   <path d="M140 366 Q169 386 198 366" fill="none" stroke="#134e4a" stroke-width="7" stroke-linecap="round"/>
   </g>
+  <!-- gold rim, like the window's border -->
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#0b0907" stroke-width="10"/>
+  <circle cx="256" cy="256" r="234" fill="none" stroke="url(#gold)" stroke-width="12"/>
+  <circle cx="256" cy="256" r="226" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="3"/>
 </svg>

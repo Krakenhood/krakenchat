@@ -181,7 +181,7 @@ KC.Symbols = {
     instance = { I .. "INV_Misc_Key_03", I .. "INV_Misc_Key_01" },
     guild    = { I .. "INV_Shirt_GuildTabard_01", I .. "INV_Misc_TabardPVP_01", I .. "INV_Banner_02" },
     officer  = { I .. "INV_Crown_01", I .. "INV_Helmet_25" },
-    say      = { I .. "Spell_Holy_SpiritualGuidence", I .. "INV_Misc_Note_04" },
+    say      = { "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up", I .. "INV_Misc_Note_04" },
     yell     = { I .. "Ability_Warrior_BattleShout", I .. "Ability_Warrior_RallyingCry" },
     emote    = { I .. "Ability_Rogue_Disguise", I .. "Spell_Shadow_Charm" },
     npc      = { I .. "INV_Misc_Head_Orc_01", I .. "INV_Misc_Head_Human_01" },
@@ -197,13 +197,22 @@ KC.Symbols = {
     unknown  = { I .. "INV_Misc_QuestionMark" },
 }
 
--- Channels by their lower-case name without spaces.
+-- Channels by a word in their name (lower case), first match wins: "Trade
+-- (Services)" is services before it is trade.
 KC.ChannelSymbols = {
-    general          = { I .. "INV_Misc_Map_01", I .. "INV_Misc_Map02" },
-    trade            = { I .. "INV_Misc_Coin_02", I .. "INV_Misc_Coin_01" },
-    lookingforgroup  = { I .. "INV_Misc_GroupLooking", I .. "Spell_Holy_PrayerOfHealing02" },
-    localdefense     = { I .. "INV_Shield_06", I .. "INV_Shield_04" },
-    worlddefense     = { I .. "INV_Shield_06", I .. "INV_Shield_04" },
-    guildrecruitment = { I .. "INV_Scroll_03", I .. "INV_Misc_Note_01" },
-    newcomerchat     = { I .. "INV_Misc_Book_09", I .. "INV_Misc_Book_08" },
+    { "services", { I .. "INV_Hammer_20", I .. "Trade_BlackSmithing" } },
+    { "defense", { I .. "INV_Shield_06", I .. "INV_Shield_04" } },
+    { "trade", { I .. "INV_Misc_Coin_02", I .. "INV_Misc_Coin_01" } },
+    { "general", { I .. "INV_Misc_Map_01", I .. "INV_Misc_Map02" } },
+    { "lookingforgroup", { I .. "INV_Misc_GroupLooking", I .. "Spell_Holy_PrayerOfHealing02" } },
+    { "lfg", { I .. "INV_Misc_GroupLooking", I .. "Spell_Holy_PrayerOfHealing02" } },
+    { "recruit", { I .. "INV_Scroll_03", I .. "INV_Misc_Note_01" } },
+    { "newcomer", { I .. "INV_Misc_Book_09", I .. "INV_Misc_Book_08" } },
 }
+
+function KC.ChannelSymbol(name)
+    name = (name or ""):lower():gsub("[%s%p]", "")
+    for _, entry in ipairs(KC.ChannelSymbols) do
+        if name:find(entry[1], 1, true) then return entry[2] end
+    end
+end

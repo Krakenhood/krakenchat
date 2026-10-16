@@ -193,12 +193,20 @@ function Feed.LinkURLs(text)
     return table.concat(out)
 end
 
--- A clickable name. `target` is what a click replies to: "name:<character>",
--- or "stream:<key>" in conversations (Battle.net friends have no character name).
-local function nameLink(target, class, label)
+-- A clickable name. `link` is the game's own player link where there is a
+-- character ("player:Name-Realm:lineID:TYPE"): left-click whispers, right-click
+-- opens the game's player menu (whisper, invite, add friend, ignore, report).
+-- Battle.net friends get our own link, which replies in their conversation.
+local function nameLink(link, class, label)
     local r, g, b = KC.ClassColor(class)
     label = KC.Colorize(label, r or 0.93, g or 0.94, b or 0.96)
-    return ("|Haddon:KrakenChat:%s|h%s|h"):format(target, label)
+    if not link then return label end
+    return ("|H%s|h%s|h"):format(link, label)
+end
+
+local function playerLink(name, m)
+    if not name then return nil end
+    return ("player:%s:%d:%s%s"):format(name, m.li or 0, m.k or "SAY", m.ci and (":" .. m.ci) or "")
 end
 Feed.NameLink = nameLink
 
@@ -231,7 +239,14 @@ function Feed:Line(m, s, all, cont)
     if m.w then parts[#parts + 1] = "|cffff4646[Warning]|r " end
 
     local who = m.a
-    local target = s.sec == "conv" and ("stream:" .. s.key) or ("name:" .. tostring(who))
+    local target
+    if s.bn then
+        target = "addon:KrakenChat:stream:" .. s.key
+    elseif s.sec == "conv" then
+        target = playerLink(s.who or m.p, m) -- whispers: always the partner, also on my own lines
+    else
+        target = playerLink(m.p, m)
+    end
     if m.f == "plain" or not who then
         parts[#parts + 1] = color .. text .. "|r"
     elseif m.f == "emote" then

@@ -178,6 +178,7 @@ function ChatEdit_DeactivateChat(box) end
 function ChatEdit_ActivateChat(box) end
 function ChatFrame_DeactivateForTest(box) ChatEdit_DeactivateChat(box) end
 
+C_PartyInfo = { InviteUnit = function(name) INVITED = name end }
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 
 KNOWN_EVENTS = { ADDON_LOADED = true, PLAYER_LOGIN = true, PLAYER_LOGOUT = true }

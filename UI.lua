@@ -183,7 +183,7 @@ function UI.SetSymbol(tex, s)
     elseif s.sec == "conv" then
         list = KC.Symbols.whisper
     elseif s.sec == "channels" then
-        list = KC.ChannelSymbols[(s.label or ""):lower():gsub("%s", "")] or KC.Symbols.channel
+        list = KC.ChannelSymbol(s.label) or KC.Symbols.channel
     else
         list = KC.Symbols[s.key] or KC.Symbols.unknown
     end
@@ -366,7 +366,7 @@ function factories.section(parent)
         if self.id == "conv" and button == "RightButton" then
             KC.db.settings.sort = KC.db.settings.sort == "name" and "recent" or "name"
         else
-            c[self.id] = not c[self.id] or nil
+            c[self.id] = not c[self.id] -- false, not nil: a default must not come back
         end
         UI:RenderSidebar()
     end)
@@ -1421,7 +1421,7 @@ function UI:Select(key)
     KC.db.settings.view = key
     -- the open stream is never hidden in a folded section
     local s = KC:Stream(key)
-    if s and s.sec then KC.db.settings.collapsed[s.sec] = nil end
+    if s and s.sec then KC.db.settings.collapsed[s.sec] = false end
     self.atBottom = true
     self.newBelow = 0
     KC:MarkRead(key)
@@ -1511,7 +1511,7 @@ function UI:StreamMenu(anchor, key)
     local entries = {
         { header = s.label },
         { text = muted and "Show in All messages" or "Hide in All messages", func = function()
-            settings.muted[key] = not muted or nil
+            settings.muted[key] = not muted
             UI:RenderSidebar()
             UI:RenderFeed()
         end },
@@ -1539,6 +1539,11 @@ function UI:MessageMenu(anchor, entry)
         entries[#entries + 1] = { text = "Whisper " .. m.a, func = function()
             if s.sec == "conv" then UI:Reply(s.key) else whisper(m.a) end
         end }
+        local who = (s.sec == "conv" and s.who) or m.p
+        local invite = (C_PartyInfo and C_PartyInfo.InviteUnit) or InviteUnit
+        if who and invite then
+            entries[#entries + 1] = { text = "Invite to group", func = function() pcall(invite, who) end }
+        end
     end
     if KC.db.settings.view == "all" then
         entries[#entries + 1] = { text = "Open " .. s.label, func = function() UI:Select(s.key) end }

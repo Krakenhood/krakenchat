@@ -11,7 +11,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **Fold the chat in**: the arrow next to the close button folds the chat away, and the window narrows to just the stream list with its unread badges, like a buddy list. Click a stream (or the arrow again) and the chat opens on it at its old width. A whisper brings the chat back by itself, unfolded on that conversation, even if you closed the window (`/kc whisperopen` or the settings switch that off).
 - **Fold the sidebar in**: the arrow at the bottom left folds the stream list into a slim rail, so the chat gets the whole width. Unread messages still show as a badge on the rail; click it to fold back out. The window remembers the choice.
 - **Hide or fold per stream**: right-click a stream to hide it from "All messages" (it's still there on its own), to switch folding on or off, or to close a conversation.
-- **Clickable everything**: names whisper that person, item links show tooltips, web addresses open a copy box. Right-click a message to copy it.
+- **Clickable everything**: names are the game's own player links: left-click whispers, right-click opens the game's player menu (whisper, invite, add friend, ignore, report). Item links show tooltips, web addresses open a copy box. Right-click a line to copy it, whisper or invite the sender.
 - **History**: messages are kept per character and survive `/reload` and logging out.
 - **Replying**: the bar at the bottom opens the game's own chat input, already set to that stream (`/w Name`, `/p`, `/g`, `/2`, ...).
 - **Replaces the game's chat window**: the game's chat windows, tabs and chat buttons are hidden while KrakenChat runs (`/kc blizzard` brings them back). The chat input moves under the KrakenChat window, and lines other addons print go into "Addon messages".
@@ -22,7 +22,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 
 ## Icon
 
-`assets/krakenchat-icon.svg` is the source of the icon: the Krakenfriends kraken holding up a speech bubble. `Media/icon.tga` (64x64) is the game texture made from it, used for the minimap button, the addon list and "All messages"; `assets/krakenchat-icon-512.png` is the large version, for CurseForge.
+`assets/krakenchat-icon.svg` is the source of the icon: the Krakenfriends kraken holding up a speech bubble, on dark stone with a gold rim like the window. `Media/icon.tga` (64x64) is the game texture made from it, used for the minimap button, the addon list and "All messages"; `assets/krakenchat-icon-512.png` is the large version, for CurseForge.
 
 ## Install
 
