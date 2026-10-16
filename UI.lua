@@ -113,7 +113,14 @@ end
 
 local function fontSize() return KC.db.settings.fontSize or 12 end
 
-local function sideWidth() return KC.db.settings.sideCollapsed and RAIL_W or SIDE_W end
+-- The sidebar is folded into the rail only while the chat is out: with the
+-- chat folded in, the stream list is all there is.
+local function railed()
+    local s = KC.db.settings
+    return s.sideCollapsed and not s.chatCollapsed
+end
+
+local function sideWidth() return railed() and RAIL_W or SIDE_W end
 
 --------------------------------------------------------------------------------
 -- Replying: opens the game's chat input set up for the stream.
@@ -327,6 +334,7 @@ function factories.stream(parent)
             if self.key ~= "all" then UI:StreamMenu(self, self.key) end
         else
             UI:Select(self.key)
+            if KC.db.settings.chatCollapsed then UI:ToggleChat() end
         end
     end)
     return w
@@ -366,19 +374,45 @@ end
 -- The window
 --------------------------------------------------------------------------------
 
+-- "<" (fold in) or ">" (fold out), drawn with two strokes.
+local function Arrow(parent)
+    local a = { parent:CreateTexture(nil, "ARTWORK"), parent:CreateTexture(nil, "ARTWORK") }
+    for _, s in ipairs(a) do
+        s:SetSize(6, 1.5)
+        s:SetColorTexture(rgb(Theme.dim))
+    end
+    function a.Point(dir)
+        local sign = dir == "left" and 1 or -1
+        a[1]:ClearAllPoints()
+        a[2]:ClearAllPoints()
+        a[1]:SetPoint("CENTER", parent, "CENTER", 0, 2)
+        a[2]:SetPoint("CENTER", parent, "CENTER", 0, -2)
+        a[1]:SetRotation(math.rad(45 * sign))
+        a[2]:SetRotation(math.rad(-45 * sign))
+    end
+    function a.Color(color)
+        for _, s in ipairs(a) do s:SetColorTexture(rgb(color)) end
+    end
+    return a
+end
+
 function UI:SaveGeometry()
     local f = self.frame
     local point, _, relPoint, x, y = f:GetPoint()
     local win = KC.db.settings.window
     win.point, win.relPoint, win.x, win.y = point, relPoint, x, y
-    win.w, win.h = math.floor(f:GetWidth() + 0.5), math.floor(f:GetHeight() + 0.5)
+    -- folded to the stream list, the window is narrow; keep the chat's width for later
+    if not KC.db.settings.chatCollapsed then win.w = math.floor(f:GetWidth() + 0.5) end
+    win.h = math.floor(f:GetHeight() + 0.5)
 end
 
 function UI:ResetPosition()
     if not self.frame then return end
     self.frame:ClearAllPoints()
     self.frame:SetPoint("CENTER")
+    KC.db.settings.chatCollapsed = nil
     self.frame:SetSize(DEFAULT_W, DEFAULT_H)
+    self:ApplyChat()
     self:SaveGeometry()
     self:Show()
 end
@@ -448,7 +482,25 @@ function UI:Create()
     close:SetScript("OnLeave", function() for _, s in ipairs(x) do s:SetColorTexture(Theme.dim[1], Theme.dim[2], Theme.dim[3], 1) end end)
     close:SetScript("OnClick", function() f:Hide() end)
 
-    self:CreateSearch(f, close)
+    -- fold the chat in: the window narrows to the stream list
+    local chatToggle = CreateFrame("Button", nil, f)
+    chatToggle:SetSize(18, 18)
+    chatToggle:SetPoint("RIGHT", close, "LEFT", -4, 0)
+    chatToggle.arrow = Arrow(chatToggle)
+    chatToggle:SetScript("OnEnter", function(self)
+        self.arrow.Color(Theme.text)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(KC.db.settings.chatCollapsed and "Show the chat" or "Fold the chat in (streams only)", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    chatToggle:SetScript("OnLeave", function(self)
+        self.arrow.Color(Theme.dim)
+        GameTooltip:Hide()
+    end)
+    chatToggle:SetScript("OnClick", function() UI:ToggleChat() end)
+    self.chatToggle = chatToggle
+
+    self:CreateSearch(f, chatToggle)
 
     local headLine = Solid(f, "ARTWORK", Theme.line)
     headLine:SetHeight(1)
@@ -545,6 +597,7 @@ function UI:Create()
         s:SetColorTexture(rgb(Theme.dim))
         s:SetRotation(math.rad(45))
     end
+    self.grip = grip
     grip:SetScript("OnMouseDown", function() f:StartSizing("BOTTOMRIGHT") end)
     grip:SetScript("OnMouseUp", function()
         f:StopMovingOrSizing()
@@ -552,35 +605,13 @@ function UI:Create()
         UI:RenderFeed()
     end)
 
-    self:ApplySide()
+    self:ApplyChat()
 end
 
 --------------------------------------------------------------------------------
 -- Folding the sidebar in: a slim rail with the unread count, so the chat gets
 -- the whole width. The window remembers it.
 --------------------------------------------------------------------------------
-
--- "<" (fold in) or ">" (fold out), drawn with two strokes.
-local function Arrow(parent)
-    local a = { parent:CreateTexture(nil, "ARTWORK"), parent:CreateTexture(nil, "ARTWORK") }
-    for _, s in ipairs(a) do
-        s:SetSize(6, 1.5)
-        s:SetColorTexture(rgb(Theme.dim))
-    end
-    function a.Point(dir)
-        local sign = dir == "left" and 1 or -1
-        a[1]:ClearAllPoints()
-        a[2]:ClearAllPoints()
-        a[1]:SetPoint("CENTER", parent, "CENTER", 0, 2)
-        a[2]:SetPoint("CENTER", parent, "CENTER", 0, -2)
-        a[1]:SetRotation(math.rad(45 * sign))
-        a[2]:SetRotation(math.rad(-45 * sign))
-    end
-    function a.Color(color)
-        for _, s in ipairs(a) do s:SetColorTexture(rgb(color)) end
-    end
-    return a
-end
 
 function UI:CreateRail(f)
     local toggle = CreateFrame("Button", nil, f)
@@ -613,7 +644,7 @@ function UI:CreateRail(f)
 end
 
 function UI:ApplySide()
-    local collapsed = KC.db.settings.sideCollapsed
+    local collapsed = railed()
     local w = sideWidth()
     self.sideBg:SetWidth(w)
     self.sideLine:ClearAllPoints()
@@ -623,7 +654,46 @@ function UI:ApplySide()
     self.scroll:SetPoint("TOPLEFT", w + PAD + 1, -HEADER - 6)
     self.footer:SetPoint("BOTTOMLEFT", w + PAD + 1, 6)
     self.sideToggle.arrow.Point(collapsed and "right" or "left")
+    self.sideToggle:SetShown(not KC.db.settings.chatCollapsed)
     self:UpdateRail()
+end
+
+--------------------------------------------------------------------------------
+-- Folding the chat in: the window narrows to just the stream list with its
+-- unread badges, like a buddy list. Clicking a stream opens the chat on it.
+--------------------------------------------------------------------------------
+
+local CHAT_PARTS = { "scroll", "track", "thumb", "empty", "footer", "search", "viewTitle" }
+
+function UI:ApplyChat()
+    local f, folded = self.frame, KC.db.settings.chatCollapsed and true or false
+    local win = KC.db.settings.window
+    local narrow = SIDE_W + 2
+    for _, key in ipairs(CHAT_PARTS) do self[key]:SetShown(not folded) end
+    if folded then
+        self.pill:Hide()
+        if f.SetResizeBounds then f:SetResizeBounds(narrow, MIN_H, narrow, 2000) end
+        f:SetWidth(narrow)
+    else
+        if f.SetResizeBounds then f:SetResizeBounds(MIN_W, MIN_H) end
+        f:SetWidth(math.max(MIN_W, win.w or DEFAULT_W))
+    end
+    self.chatToggle.arrow.Point(folded and "right" or "left")
+    self:ApplySide()
+end
+
+function UI:ToggleChat()
+    local settings = KC.db.settings
+    if not settings.chatCollapsed then self:SaveGeometry() end -- the width to come back to
+    settings.chatCollapsed = not settings.chatCollapsed or nil
+    self:ApplyChat()
+    self:SaveGeometry()
+    if not settings.chatCollapsed then
+        self.atBottom = true
+        KC:MarkRead(settings.view)
+    end
+    self:RenderSidebar()
+    self:RenderFeed()
 end
 
 function UI:UpdateRail()
@@ -790,7 +860,7 @@ local function layoutMsg(w, item, width, all)
 end
 
 function UI:RenderFeed()
-    if not (self.frame and self.frame:IsShown()) then
+    if not (self.frame and self.frame:IsShown()) or KC.db.settings.chatCollapsed then
         self.dirty = true
         return
     end

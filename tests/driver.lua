@@ -246,6 +246,35 @@ SlashCmdList.KRAKENCHAT("side")
 check(not KC.db.settings.sideCollapsed, "and out")
 KC:MarkRead("w:elunara")
 
+section("folding the chat in")
+KC.UI:Select("all")
+local fullWidth = KrakenChatFrame:GetWidth()
+Click(KC.UI.chatToggle)
+check(KC.db.settings.chatCollapsed == true, "the chat folds in and it is remembered")
+check(KrakenChatFrame:GetWidth() < 200 and KC.UI.side:IsShown(), "the window narrows to the stream list")
+check(not KC.UI.scroll:IsShown() and not KC.UI.footer:IsShown() and not KC.UI.search:IsShown(), "chat, reply bar and search are hidden")
+check(KC.db.settings.window.w == fullWidth, "the chat's width is kept for later")
+Say("GUILD", "anyone there?", "Thalianne", "Player-1-T")
+local guildUnread = S("guild").unread
+KC.UI:Select("guild")
+KC:MarkRead("guild")
+Say("GUILD", "hello??", "Thalianne", "Player-1-T")
+check(S("guild").unread == 1, "messages count as unread while the chat is folded in")
+KC.db.settings.sideCollapsed = true
+KC.UI:ApplySide()
+check(KC.UI.side:IsShown() and not KC.UI.sideToggle:IsShown(), "the stream list can't fold into the rail while the chat is in")
+KC.db.settings.sideCollapsed = nil
+-- clicking a stream opens the chat on it
+KC.UI:Select("party")
+KC.UI:ToggleChat()
+check(not KC.db.settings.chatCollapsed and KrakenChatFrame:GetWidth() == fullWidth, "the chat comes back at its old width")
+check(KC.UI.scroll:IsShown() and KC.UI.footer:IsShown(), "chat parts shown again")
+SlashCmdList.KRAKENCHAT("compact")
+check(KC.db.settings.chatCollapsed == true, "/kc compact folds the chat in")
+SlashCmdList.KRAKENCHAT("compact")
+check(not KC.db.settings.chatCollapsed, "and out again")
+KC.UI:Select("all")
+
 section("caps")
 for i = 1, 100 do Say("YELL", "loud " .. i, "Pip") end
 for i = 1, 300 do Say("SAY", "line " .. i, "Pip") end

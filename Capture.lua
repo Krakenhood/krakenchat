@@ -51,6 +51,7 @@ end
 function KC:IsViewing(key)
     local UI = self.UI
     if not (UI and UI.frame and UI.frame:IsShown() and UI.atBottom ~= false) then return false end
+    if self.db.settings.chatCollapsed then return false end
     return self.db.settings.view == key
 end
 

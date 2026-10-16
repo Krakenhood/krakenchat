@@ -8,6 +8,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 - **No repeats**: the same message from the same person in Say, Yell or a channel within 10 minutes is counted (`x3`) instead of shown again. Goodbye, trade spam.
 - **Blocks**: lines from the same person within two minutes are grouped, with the name and time shown once.
 - **Search**: type in the search box to filter the open stream by text or sender.
+- **Fold the chat in**: the arrow next to the close button folds the chat away, and the window narrows to just the stream list with its unread badges, like a buddy list. Click a stream (or the arrow again) and the chat opens on it at its old width.
 - **Fold the sidebar in**: the arrow at the bottom left folds the stream list into a slim rail, so the chat gets the whole width. Unread messages still show as a badge on the rail; click it to fold back out. The window remembers the choice.
 - **Hide or fold per stream**: right-click a stream to hide it from "All messages" (it's still there on its own), to switch folding on or off, or to close a conversation.
 - **Clickable everything**: names whisper that person, item links show tooltips, web addresses open a copy box. Right-click a message to copy it.
@@ -26,6 +27,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc` | Open or close the window |
 | `/kc time` | Timestamps on or off |
 | `/kc font <10-18>` | Text size of the feed |
+| `/kc compact` | Fold the chat in, keeping only the stream list |
 | `/kc side` | Fold the stream list in or out |
 | `/kc minimap` | Show or hide the minimap button |
 | `/kc demo` | Add or remove sample messages |
