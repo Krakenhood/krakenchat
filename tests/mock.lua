@@ -3,6 +3,7 @@ unpack = table.unpack
 ERRORS = {}
 CHAT = {}
 CAPTURE = nil -- when a table, SetText calls append here
+BUTTONS = {} -- every button made, to find pooled ones
 
 local function noop() end
 
@@ -47,6 +48,7 @@ Object.__index = function(t, k)
 end
 local function new(kind, parent)
     local o = setmetatable({ _kind = kind, _parent = parent, _shown = true, _w = 0, _h = 0, _scripts = {}, _events = {} }, Object)
+    if kind == "Button" then BUTTONS[#BUTTONS + 1] = o end
     return o
 end
 function Object:SetSize(w, h) rawset(self, "_w", w); rawset(self, "_h", h) end

@@ -356,6 +356,20 @@ SlashCmdList.KRAKENCHAT("symbols")
 check(KC.db.settings.sidebar == "symbols", "and to symbols again")
 SlashCmdList.KRAKENCHAT("symbols round")
 check(KC.db.settings.sidebar == "round" and KC:Look().round, "/kc symbols round: round symbols")
+local tipLines, tipShown = {}, false
+function GameTooltip:AddLine(t) tipLines[#tipLines + 1] = t end
+function GameTooltip:Show() tipShown = true end
+local hovered, named = 0, 0
+for _, b in ipairs(BUTTONS) do
+    if b._parent == KC.UI.sideChild and b.key and b._shown and b._scripts.OnEnter then
+        tipLines, tipShown = {}, false
+        local ok = pcall(b._scripts.OnEnter, b)
+        hovered = hovered + 1
+        if ok and tipShown and tipLines[1] == b.label and b.label ~= "" then named = named + 1 end
+    end
+end
+GameTooltip.AddLine, GameTooltip.Show = nil, nil
+check(hovered > 3 and named == hovered, "hovering a symbol shows its name (" .. named .. " of " .. hovered .. ")")
 SlashCmdList.KRAKENCHAT("theme 1")
 SlashCmdList.KRAKENCHAT("style teal")
 check(KC.db.settings.style == "wow" and #POPUPS == popups, "the teal look is parked: no command reaches it")

@@ -525,7 +525,7 @@ function factories.icon(parent)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:AddLine(self.label or "", 1, 1, 1)
         if self.unread and self.unread > 0 then GameTooltip:AddLine(self.unread .. " unread", 0.55, 0.42, 0.95) end
-        local flag = streamFlag(self.key, KC:Stream(self.key))
+        local flag = UI.StreamFlag(self.key, KC:Stream(self.key))
         if flag == "hidden" then GameTooltip:AddLine('Hidden in "All messages"', 0.56, 0.6, 0.66) end
         if flag == "folded" then GameTooltip:AddLine('Folded in "All messages"', 0.56, 0.6, 0.66) end
         if flag == "unfolded" then GameTooltip:AddLine('Not folded in "All messages"', 0.56, 0.6, 0.66) end
