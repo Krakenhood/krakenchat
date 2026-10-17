@@ -694,8 +694,39 @@ KC.UI.menuEntries[3].func()
 check(#settings.views == 1 and settings.views[1].name == nil, "'Delete view' removes the ready-made one")
 KC:LoadDB()
 check(#KC.db.settings.views == 1, "and it doesn't come back after a reload")
-KC.UI:DeleteView("v:" .. KC.db.settings.views[1].id)
-check(#KC.db.settings.views == 0, "the saved one can go too")
+SlashCmdList.KRAKENCHAT("groupview")
+check(#KC.db.settings.views == 2 and KC.db.settings.views[1].name == "Group & nearby" and KC.Contains(KC.db.settings.views[1].keys, "loot"), "/kc groupview brings it back")
+check(KC.db.settings.view == "v:" .. KC.db.settings.views[1].id, "and opens it")
+
+-- badges while the chat is folded in, with symbols
+settings.sidebar = "symbols"
+KC.UI:Select("guild")
+KC.UI:ToggleChat()
+Say("PARTY", "help!", "Thalianne", "Player-1-T")
+check(S("party").unread >= 1, "folded with symbols: a party line from someone else counts")
+local grow = KC.UI:ViewRows()[1]
+check(grow.badge.unread >= 1 and KC.UI.BadgeKind(grow.badge) == true, "and the group view's symbol gets the red badge")
+Say("PARTY", "my own line", "Krakenhood", "Player-1-ME")
+local before = S("party").unread
+Say("PARTY", "another own line", "Krakenhood", "Player-1-ME")
+check(S("party").unread == before, "your own lines never count")
+-- a party line opens the chat (when ticked)
+check(settings.chatCollapsed, "still folded: opening on party lines is off by default")
+settings.openOnGroup = true
+Say("PARTY", "pull now", "Thalianne", "Player-1-T")
+check(not settings.chatCollapsed and settings.view == "v:" .. settings.views[1].id, "ticked: a party line opens the chat on the group view")
+KC.UI:ToggleChat()
+local kept = {}
+for _, v in ipairs(settings.views) do kept[#kept + 1] = v end
+settings.views = {}
+Say("PARTY", "again", "Thalianne", "Player-1-T")
+check(not settings.chatCollapsed and settings.view == "party", "without a group view: on Party")
+settings.openOnGroup = false
+settings.sidebar = "text"
+settings.views = kept
+KC.UI:Select("all")
+while #settings.views > 0 do KC.UI:DeleteView("v:" .. settings.views[1].id) end
+check(#KC.db.settings.views == 0, "every view can go")
 KC.UI:Select("all")
 
 section("context menu clicks")

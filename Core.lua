@@ -187,6 +187,7 @@ local DEFAULTS = {
         style = "wow",         -- the WoW style; the teal "flat" look is parked
         sidebar = "text",      -- "text", "symbols" or "round"
         openOnWhisper = true,  -- a whisper unfolds the chat while it's folded in
+        openOnGroup = false,   -- ...and so do party, raid and instance lines
         quietCounts = true,    -- small grey unread counts for Say, Yell, Emotes and channels
         muted = {},            -- stream key -> true: left out of "All messages" (false: shown)
         views = {},            -- saved views: { id, name?, keys = { stream keys } }, shown under "Views"
@@ -198,6 +199,30 @@ local DEFAULTS = {
 }
 
 local CHAR_DEFAULTS = { streams = {}, nextId = 1 }
+
+-- The ready-made view: your group and what's said around you, with loot and
+-- system lines; no channels, no whispers. Added once at the start, and again
+-- with /kc groupview. Returns its key.
+local GROUP_VIEW = { "party", "raid", "instance", "say", "yell", "loot", "system" }
+
+function KC:AddGroupView()
+    local settings = self.db.settings
+    local id = settings.nextViewId or 1
+    settings.nextViewId = id + 1
+    local keys = {}
+    for _, k in ipairs(GROUP_VIEW) do keys[#keys + 1] = k end
+    table.insert(settings.views, 1, { id = id, name = "Group & nearby", keys = keys })
+    return "v:" .. id
+end
+
+-- The saved view that shows your group: "Group & nearby" if it's there.
+function KC:GroupViewKey()
+    for _, v in ipairs(self.db.settings.views) do
+        for _, k in ipairs(v.keys) do
+            if k == "party" or k == "raid" or k == "instance" then return "v:" .. v.id end
+        end
+    end
+end
 
 function KC:LoadDB()
     if type(KrakenChatDB) ~= "table" then KrakenChatDB = {} end
@@ -215,9 +240,7 @@ function KC:LoadDB()
     local settings = self.db.settings
     if not settings.viewsSeeded then
         settings.viewsSeeded = true
-        table.insert(settings.views, 1, { id = 1, name = "Group & nearby",
-            keys = { "party", "raid", "instance", "say", "yell", "loot", "system" } })
-        settings.nextViewId = math.max(settings.nextViewId or 1, 2)
+        self:AddGroupView()
     end
     self.char = fill(KrakenChatCharDB, CHAR_DEFAULTS)
     for key, s in pairs(self.char.streams) do
@@ -281,6 +304,7 @@ local HELP = {
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
     "|cff4fd1c5/kc symbols|r: sidebar as symbols or names (|cff4fd1c5/kc symbols round|r for round ones)",
     "|cff4fd1c5/kc settings|r: open the settings window",
+    "|cff4fd1c5/kc groupview|r: bring back the \"Group & nearby\" view",
     "|cff4fd1c5/kc whisperopen|r: whether a whisper unfolds the folded-in chat",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
@@ -319,6 +343,11 @@ function KC:Slash(input)
         self:Print(sidebar == "text" and "Sidebar: names." or "Sidebar: symbols (names are in the tooltips).")
     elseif cmd == "settings" or cmd == "options" or cmd == "config" then
         self.Options:Toggle()
+    elseif cmd == "groupview" then
+        self.UI:Create()
+        if not self.UI.frame:IsShown() then self.UI:Show() end
+        self.UI:Select(self:AddGroupView())
+        self:Print('"Group & nearby" is back under Views.')
     elseif cmd == "whisperopen" then
         settings.openOnWhisper = not settings.openOnWhisper
         self:Print("A whisper " .. (settings.openOnWhisper and "unfolds the chat." or "no longer unfolds the chat."))

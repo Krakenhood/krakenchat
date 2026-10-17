@@ -32,6 +32,11 @@ local ENTRIES = {
         set = function(v) settings().openOnWhisper = v end,
     },
     {
+        label = "...and when your party or raid writes",
+        get = function() return settings().openOnGroup end,
+        set = function(v) settings().openOnGroup = v end,
+    },
+    {
         label = "Count new lines in Say, Yell and channels",
         get = function() return settings().quietCounts end,
         set = function(v)

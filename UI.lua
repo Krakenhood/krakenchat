@@ -1914,13 +1914,17 @@ local function inView(s)
 end
 
 KC:Listen("MESSAGE", function(m, s, isRepeat)
-    -- a whisper brings the chat back, closed or folded in, open on its conversation
+    -- a whisper brings the chat back, closed or folded in, open on its
+    -- conversation; with openOnGroup, a line from your group does too, open on
+    -- the view with your group ("Group & nearby") or the group's own stream
     local settings = KC.db.settings
-    if s.sec == "conv" and not m.o and not isRepeat and settings.openOnWhisper and not KC.demoing then
+    local group = s.key == "party" or s.key == "raid" or s.key == "instance"
+    local opens = (s.sec == "conv" and settings.openOnWhisper) or (group and settings.openOnGroup and not m.sys)
+    if opens and not m.o and not isRepeat and not KC.demoing then
         local closed = not (UI.frame and UI.frame:IsShown())
         if closed or settings.chatCollapsed then
             UI:Show()
-            UI:Select(s.key)
+            UI:Select(group and KC:GroupViewKey() or s.key)
             if settings.chatCollapsed then UI:ToggleChat() end
             return
         end
