@@ -405,8 +405,8 @@ SlashCmdList.KRAKENCHAT("settings")
 local O = KC.Options
 check(KrakenChatOptionsFrame and KrakenChatOptionsFrame:IsShown(), "/kc settings opens the settings window")
 local function row(text) for _, r in ipairs(O.rows) do if r.entry.label:find(text, 1, true) then return r end end end
-local unfold = row("Open the chat")
-check(unfold and unfold.tick[1]:IsShown(), "'Open the chat when someone whispers you' is ticked by default")
+local unfold = row("On whispers")
+check(unfold and unfold.tick[1]:IsShown(), "'On whispers' is ticked by default")
 Click(unfold)
 check(KC.db.settings.openOnWhisper == false and not unfold.tick[1]:IsShown(), "unticking it switches it off")
 Click(unfold)
@@ -627,7 +627,15 @@ check(S("guild").unread > 0, "others still count")
 KC.UI:Select("guild")
 Say("PARTY", "wait", "Thalianne", "Player-1-T")
 local vrows = KC.UI:ViewRows()
-check(vrows[1].key == "v:1" and vrows[1].badge.unread >= 1 and KC.UI.BadgeKind(vrows[1].badge) == true, "a view's badge sums its streams, red when the party is waiting")
+check(vrows[1].key == "v:1" and vrows[1].badge.unread >= 1 and KC.UI.BadgeKind(vrows[1].badge) == true, "a view's badge is red when the party is waiting")
+S("say").unread = 40
+local partyUnread = S("party").unread
+vrows = KC.UI:ViewRows()
+check(vrows[1].badge.unread == partyUnread, "and counts only the red lines: Say's 40 don't inflate it (" .. vrows[1].badge.unread .. ")")
+S("party").unread = 0
+vrows = KC.UI:ViewRows()
+check(vrows[1].badge.unread == 40 and KC.UI.BadgeKind(vrows[1].badge) == "quiet", "with nothing red: Say's grey 40")
+S("party").unread, S("say").unread = partyUnread, 0
 
 -- Ctrl+click
 KC.UI:Select("party")

@@ -1625,19 +1625,27 @@ end
 function UI:ViewRows()
     local settings = KC.db.settings
     local rows = {}
+    -- Only the most urgent level counts: 1 party line and 40 Trade lines show
+    -- a red 1, not a red 41.
     local function badgeFor(keys)
-        local n, kind = 0, nil
+        local red, gold, quiet = 0, 0, 0
         for _, k in ipairs(keys) do
             local s = KC:Stream(k)
             if s and s.unread > 0 then
-                n = n + s.unread
                 local b = UI.BadgeKind(s)
-                if b == true then kind = true elseif b == false and kind ~= true then kind = false
-                elseif kind == nil then kind = "quiet" end
+                if b == true then red = red + s.unread
+                elseif b == false then gold = gold + s.unread
+                else quiet = quiet + s.unread end
             end
         end
-        local fake = { unread = n, view = true }
-        if kind == true then fake.sec = "conv" elseif kind == false then fake.sec, fake.key = "group", "guild" else fake.sec = "near" end
+        local fake = { view = true }
+        if red > 0 then
+            fake.unread, fake.sec = red, "conv"
+        elseif gold > 0 then
+            fake.unread, fake.sec, fake.key = gold, "group", "guild"
+        else
+            fake.unread, fake.sec = quiet, "near"
+        end
         return fake
     end
     for _, v in ipairs(settings.views) do
