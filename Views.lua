@@ -173,8 +173,10 @@ function Editor:Refresh()
     local on = {}
     for _, k in ipairs(v.keys) do on[k] = true end
 
+    -- no symbol of its own: the view shows the default scroll, so that's framed
+    local icon, gold = v.icon or KC.Symbols.view[1], v.icon and v.gold or false
     for _, b in ipairs(self.icons) do
-        b.ring:SetShown(b.path == v.icon and (b.gold and true or false) == (v.gold and true or false))
+        b.ring:SetShown(b.path == icon and (b.gold and true or false) == (gold and true or false))
     end
 
     local y, hi, bi = 124, 0, 0

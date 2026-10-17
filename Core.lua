@@ -203,10 +203,13 @@ local DEFAULTS = {
 
 local CHAR_DEFAULTS = { streams = {}, nextId = 1 }
 
--- The ready-made view: your group and what's said around you, with loot and
--- system lines; no channels, no whispers. Added once at the start, and again
+-- The ready-made view: your group and guild, what's said around you and the
+-- game's own lines (all but crafting); no channels, no whispers. Added once at the start, and again
 -- with /kc groupview. Returns its key.
-local GROUP_VIEW = { "party", "raid", "instance", "say", "yell", "loot", "system" }
+local GROUP_VIEW = {
+    "party", "raid", "instance", "guild", "say", "yell", "emote",
+    "npc", "system", "loot", "progress", "achieve", "addons",
+}
 
 function KC:AddGroupView()
     local settings = self.db.settings
