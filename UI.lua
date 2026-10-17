@@ -155,6 +155,9 @@ local function sideWidth()
     return KC:Look().symbols and SYMBOL_W or SIDE_W
 end
 
+-- The window's width when folded in to the stream list.
+function UI.FoldedWidth() return sideWidth() + 2 end
+
 --------------------------------------------------------------------------------
 -- Symbols
 --------------------------------------------------------------------------------
@@ -806,7 +809,26 @@ function UI:CreateContent(f)
     gear:SetScript("OnClick", function() KC.Options:Toggle() end)
     self.gear = gear
 
-    self:CreateSearch(f, gear, title)
+    -- "+": a new view (several streams in one feed), made in the view editor
+    local plus = CreateFrame("Button", nil, f)
+    plus:SetSize(18, 18)
+    plus:SetPoint("RIGHT", gear, "LEFT", -2, 0)
+    plus.strokes = Strokes(plus, 10, Theme.dim, { 0, 90 })
+    plus:SetScript("OnEnter", function(self)
+        for _, s in ipairs(self.strokes) do s:SetColorTexture(rgb(Theme.text)) end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("New view", 1, 1, 1)
+        GameTooltip:AddLine("Several streams together in one feed", 0.78, 0.72, 0.6)
+        GameTooltip:Show()
+    end)
+    plus:SetScript("OnLeave", function(self)
+        for _, s in ipairs(self.strokes) do s:SetColorTexture(rgb(Theme.dim)) end
+        GameTooltip:Hide()
+    end)
+    plus:SetScript("OnClick", function() KC.ViewEditor:NewWith(nil) end)
+    self.plus = plus
+
+    self:CreateSearch(f, plus, title)
 
     local headLine = Solid(f, "ARTWORK", Theme.line)
     headLine:SetHeight(1)
@@ -978,7 +1000,7 @@ local CHAT_PARTS = { "scroll", "track", "thumb", "empty", "footer" }
 function UI:ApplyChat()
     local f, folded = self.frame, KC.db.settings.chatCollapsed and true or false
     local win = KC.db.settings.window
-    local narrow = sideWidth() + 2
+    local narrow = UI.FoldedWidth()
     for _, key in ipairs(CHAT_PARTS) do self[key]:SetShown(not folded) end
     if folded then
         -- the chat comes back at the bottom (ToggleChat), so nothing is "new below"
@@ -1364,6 +1386,7 @@ function UI:RefreshHeader()
     self.viewTitle:SetShown(not folded and KC:Look().symbols and not self.search:IsShown())
     self.glass:SetShown(not folded)
     self.gear:SetShown(not folded)
+    self.plus:SetShown(not folded)
     local reply = self:ReplyText(view)
     self.footer:SetShown(reply ~= nil and not folded)
     if reply then self.footer.text:SetText(reply) end
@@ -1914,21 +1937,8 @@ local function inView(s)
 end
 
 KC:Listen("MESSAGE", function(m, s, isRepeat)
-    -- a whisper brings the chat back, closed or folded in, open on its
-    -- conversation; with openOnGroup, a line from your group does too, open on
-    -- the view with your group ("Group & nearby") or the group's own stream
-    local settings = KC.db.settings
-    local group = s.key == "party" or s.key == "raid" or s.key == "instance"
-    local opens = (s.sec == "conv" and settings.openOnWhisper) or (group and settings.openOnGroup and not m.sys)
-    if opens and not m.o and not isRepeat and not KC.demoing then
-        local closed = not (UI.frame and UI.frame:IsShown())
-        if closed or settings.chatCollapsed then
-            UI:Show()
-            UI:Select(group and KC:GroupViewKey() or s.key)
-            if settings.chatCollapsed then UI:ToggleChat() end
-            return
-        end
-    end
+    -- a whisper (or a party line) may open a folded-in or closed chat (Popup.lua)
+    if KC.Popup:Consider(m, s, isRepeat) then return end
     if not inView(s) then
         UI:Request("side")
         return

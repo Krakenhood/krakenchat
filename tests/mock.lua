@@ -89,6 +89,8 @@ function Object:GetCenter() return 100, 100 end
 function Object:GetEffectiveScale() return 1 end
 function Object:GetFrameLevel() return 1 end
 function Object:SetFont() return true end
+function Object:SetAlpha(a) rawset(self, "_alpha", a) end
+function Object:GetAlpha() return self._alpha or 1 end
 function Object:SetTexture(f) rawset(self, "_file", f) end
 function Object:SetColorTexture(r, g, b, a) rawset(self, "_color", { r, g, b, a }) end
 

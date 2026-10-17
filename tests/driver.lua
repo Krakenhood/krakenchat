@@ -739,6 +739,70 @@ Click(closeBtn)
 check(S("w:zedd") == nil and not KrakenChatMenu:IsShown(), "clicking 'Close conversation' closes it")
 KC.UI:Select("all")
 
+section("pop-up and going back")
+local P = KC.Popup
+local function tick(sec) local f = P.timer._scripts.OnUpdate; if f then f(P.timer, sec) end end
+KC.UI:Select("all")
+KC.UI:ToggleChat() -- folded in
+Say("WHISPER", "you there?", "Zora", "Player-1-Zo")
+check(not KC.db.settings.chatCollapsed and KC.db.settings.view == "w:zora", "folded in: a whisper pops the chat open on it")
+check(P.active and P.line:IsShown(), "with the gold line counting down")
+tick(2.5)
+check(P.line:GetWidth() < KrakenChatFrame:GetWidth() * 0.6, "the line runs out")
+tick(2.6)
+check(P.active and P.active.going, "after 5 seconds it goes back")
+tick(0.4)
+check(KC.db.settings.chatCollapsed and not P.active, "slid back to the stream list")
+check(S("w:zora").unread >= 1, "and the whisper is still unread: the badge stays")
+Say("WHISPER", "hello??", "Zora", "Player-1-Zo")
+local realOver = KrakenChatFrame.IsMouseOver
+KrakenChatFrame.IsMouseOver = function() return true end
+tick(1)
+KrakenChatFrame.IsMouseOver = realOver
+tick(10)
+check(not KC.db.settings.chatCollapsed and not P.active, "pointing at it: it stays open")
+KC.UI:ToggleChat()
+
+-- closed
+KrakenChatFrame:Hide()
+Say("WHISPER", "ping", "Zora", "Player-1-Zo")
+check(KrakenChatFrame:IsShown(), "closed: a whisper shows the window")
+tick(5.1)
+tick(0.15)
+check(KrakenChatFrame:GetAlpha() < 1 and KrakenChatFrame:GetAlpha() > 0, "fading out")
+tick(0.3)
+check(not KrakenChatFrame:IsShown() and KrakenChatFrame:GetAlpha() == 1, "gone again, ready to show normally next time")
+check(KC.db.settings.chatCollapsed, "and folded in as it was before it was closed")
+KrakenChatFrame:Show()
+
+-- options
+KC.db.settings.popReturn = false
+Say("WHISPER", "stay", "Zora", "Player-1-Zo")
+check(not KC.db.settings.chatCollapsed and not P.active, "without 'go back': it just stays open")
+KC.UI:ToggleChat()
+KC.db.settings.popReturn = true
+KC.db.settings.popWhenFolded = false
+Say("WHISPER", "folded?", "Zora", "Player-1-Zo")
+check(KC.db.settings.chatCollapsed, "'...when folded in' off: a folded chat stays folded")
+KC.db.settings.popWhenFolded = true
+KrakenChatFrame:Hide()
+KC.db.settings.popWhenClosed = false
+Say("WHISPER", "closed?", "Zora", "Player-1-Zo")
+check(not KrakenChatFrame:IsShown(), "'...when closed' off: a closed window stays closed")
+KC.db.settings.popWhenClosed = true
+KrakenChatFrame:Show()
+KC.UI:ToggleChat()
+KC:CloseStream("w:zora")
+KC.UI:Select("all")
+
+section("the + button")
+local nViews = #KC.db.settings.views
+Click(KC.UI.plus)
+check(#KC.db.settings.views == nViews + 1 and KrakenChatViewEditor:IsShown(), "'+' makes a new, empty view and opens the editor")
+check(#KC.db.settings.views[nViews + 1].keys == 0, "with nothing ticked yet")
+KrakenChatViewEditor:Hide()
+check(#KC.db.settings.views == nViews and KC.db.settings.view == "all", "closed without ticking two streams: no view")
+
 section("opening a stream opens its section")
 KC.db.settings.collapsed.channels = true
 KC.UI:Select("ch:trade")

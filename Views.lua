@@ -196,13 +196,13 @@ function Editor:Open(viewKey)
     self.frame:Show()
 end
 
--- "Show together with...": a new view starting with this stream, opened in
--- the chat so every tick shows right away.
+-- A new view, opened in the chat so every tick shows right away: empty (the
+-- "+" in the header) or starting with a stream ("Show together with...").
 function Editor:NewWith(streamKey)
     local settings = KC.db.settings
     local id = settings.nextViewId or 2
     settings.nextViewId = id + 1
-    table.insert(settings.views, { id = id, keys = { streamKey } })
+    table.insert(settings.views, { id = id, keys = { streamKey } }) -- { nil } is an empty list
     self.isNew = "v:" .. id
     KC.UI:Select("v:" .. id)
     self:Open("v:" .. id)

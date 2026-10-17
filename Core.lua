@@ -188,6 +188,9 @@ local DEFAULTS = {
         sidebar = "text",      -- "text", "symbols" or "round"
         openOnWhisper = true,  -- a whisper unfolds the chat while it's folded in
         openOnGroup = false,   -- ...and so do party, raid and instance lines
+        popWhenFolded = true,  -- pop up when the chat is folded in
+        popWhenClosed = true,  -- pop up when the window is closed
+        popReturn = true,      -- go back after a few seconds unless you use it
         quietCounts = true,    -- small grey unread counts for Say, Yell, Emotes and channels
         muted = {},            -- stream key -> true: left out of "All messages" (false: shown)
         views = {},            -- saved views: { id, name?, keys = { stream keys } }, shown under "Views"

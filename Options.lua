@@ -24,18 +24,39 @@ local function refreshAll()
 end
 
 -- Each entry: a tick box (get/set) or a header.
+local function popsAtAll() return settings().openOnWhisper or settings().openOnGroup end
+
 local ENTRIES = {
-    { header = "Behaviour" },
+    { header = "Pop-up" },
     {
-        label = "Open the chat when someone whispers you",
+        label = "Open the chat for whispers",
         get = function() return settings().openOnWhisper end,
         set = function(v) settings().openOnWhisper = v end,
     },
     {
-        label = "...and when your party or raid writes",
+        label = "Open the chat for party and raid",
         get = function() return settings().openOnGroup end,
         set = function(v) settings().openOnGroup = v end,
     },
+    {
+        label = "...when the chat is folded in",
+        get = function() return settings().popWhenFolded end,
+        set = function(v) settings().popWhenFolded = v end,
+        enabled = popsAtAll,
+    },
+    {
+        label = "...when the window is closed",
+        get = function() return settings().popWhenClosed end,
+        set = function(v) settings().popWhenClosed = v end,
+        enabled = popsAtAll,
+    },
+    {
+        label = "Go back after 5 seconds (stays while you point at it)",
+        get = function() return settings().popReturn end,
+        set = function(v) settings().popReturn = v end,
+        enabled = popsAtAll,
+    },
+    { header = "Behaviour" },
     {
         label = "Count new lines in Say, Yell and channels",
         get = function() return settings().quietCounts end,
