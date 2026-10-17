@@ -324,7 +324,35 @@ local HELP = {
     "|cff4fd1c5/kc demo|r: add or remove sample messages to preview the window",
     "|cff4fd1c5/kc resetwindow|r: window back to the bottom left at its default size",
     "|cff4fd1c5/kc clear|r: erase this character's chat history",
+    "|cff4fd1c5/kc cpu|r: how much time each addon takes (recent average and worst frame)",
 }
+
+-- The game's own profiler, which its addon list only shows an average of:
+-- every loaded addon, busiest first.
+function KC:PrintCPU()
+    local P, M, A = C_AddOnProfiler, Enum and Enum.AddOnProfilerMetric, C_AddOns
+    if not (P and P.GetAddOnMetric and M and A) then
+        self:Print("This game client has no addon profiler.")
+        return
+    end
+    local list = {}
+    for i = 1, A.GetNumAddOns() do
+        local name = A.GetAddOnInfo(i)
+        if name and A.IsAddOnLoaded(i) then
+            local ok1, recent = pcall(P.GetAddOnMetric, name, M.RecentAverageTime)
+            local ok2, peak = pcall(P.GetAddOnMetric, name, M.PeakTime)
+            list[#list + 1] = { name = name, recent = ok1 and tonumber(recent) or 0, peak = ok2 and tonumber(peak) or 0 }
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.recent ~= b.recent then return a.recent > b.recent end
+        return a.peak > b.peak
+    end)
+    self:Print("CPU per addon, in ms per frame: recent average, worst frame since login")
+    for _, e in ipairs(list) do
+        self:Printf("  %s: %.3f, worst %.1f", e.name, e.recent, e.peak)
+    end
+end
 
 function KC:Slash(input)
     local cmd, rest = strtrim(input or ""):match("^(%S*)%s*(.-)$")
@@ -358,6 +386,8 @@ function KC:Slash(input)
         self.Options:Toggle()
     elseif cmd == "welcome" then
         self.Welcome:Show()
+    elseif cmd == "cpu" then
+        self:PrintCPU()
     elseif cmd == "groupview" then
         self.UI:Create()
         if not self.UI.frame:IsShown() then self.UI:Show() end

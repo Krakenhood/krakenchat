@@ -52,6 +52,7 @@ Copy the `KrakenChat` folder into the game's `Interface\AddOns` folder, then typ
 | `/kc minimap` | Show or hide the minimap button |
 | `/kc demo` | Add or remove sample messages |
 | `/kc resetwindow` | Window back to the bottom left at its default size (also a button in the settings) |
+| `/kc cpu` | How much time each addon takes, busiest first: recent average and worst frame since login (the game's addon list only shows an average) |
 | `/kc clear` | Erase this character's chat history (asks first) |
 
 ## How it works

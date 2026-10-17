@@ -833,6 +833,30 @@ KC.UI:ToggleChat()
 KC:CloseStream("w:zora")
 KC.UI:Select("all")
 
+section("/kc cpu")
+local names = { "Questie", "KrakenChat", "RareScanner" }
+local recent = { Questie = 0.14, KrakenChat = 0.001, RareScanner = 0.02 }
+C_AddOns.GetNumAddOns = function() return 3 end
+C_AddOns.GetAddOnInfo = function(i) return names[i] end
+C_AddOns.IsAddOnLoaded = function() return true end
+Enum = Enum or {}
+Enum.AddOnProfilerMetric = { RecentAverageTime = 1, PeakTime = 2 }
+C_AddOnProfiler = { GetAddOnMetric = function(n, m) return m == 1 and recent[n] or 10 end }
+local from = #CHAT
+SlashCmdList.KRAKENCHAT("cpu")
+local order = {}
+for i = from + 1, #CHAT do
+    local n = CHAT[i]:match("%s(%a+): [%d.]+, worst")
+    if n then order[#order + 1] = n end
+end
+check(table.concat(order, ",") == "Questie,RareScanner,KrakenChat", "/kc cpu lists every addon, busiest first: " .. table.concat(order, ","))
+C_AddOnProfiler = nil
+from = #CHAT
+SlashCmdList.KRAKENCHAT("cpu")
+local none = false
+for i = from + 1, #CHAT do if CHAT[i]:find("no addon profiler", 1, true) then none = true end end
+check(none, "and says so on a client without the profiler")
+
 section("the + button")
 local nViews = #KC.db.settings.views
 Click(KC.UI.plus)
