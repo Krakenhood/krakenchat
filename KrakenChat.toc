@@ -18,3 +18,4 @@ Blizzard.lua
 Options.lua
 Views.lua
 Popup.lua
+Welcome.lua

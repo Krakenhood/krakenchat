@@ -228,6 +228,8 @@ function KC:GroupViewKey()
 end
 
 function KC:LoadDB()
+    -- nothing saved yet: a fresh install, which gets the welcome (sidebar choice)
+    self.firstRun = type(KrakenChatDB) ~= "table" or type(KrakenChatDB.settings) ~= "table"
     if type(KrakenChatDB) ~= "table" then KrakenChatDB = {} end
     if type(KrakenChatCharDB) ~= "table" then KrakenChatCharDB = {} end
     -- 0.1 kept a theme number; it becomes a style and a sidebar
@@ -307,6 +309,7 @@ local HELP = {
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
     "|cff4fd1c5/kc symbols|r: sidebar as symbols or names (|cff4fd1c5/kc symbols round|r for round ones)",
     "|cff4fd1c5/kc settings|r: open the settings window",
+    "|cff4fd1c5/kc welcome|r: the first-start choice between symbols and names",
     "|cff4fd1c5/kc groupview|r: bring back the \"Group & nearby\" view",
     "|cff4fd1c5/kc whisperopen|r: whether a whisper unfolds the folded-in chat",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
@@ -346,6 +349,8 @@ function KC:Slash(input)
         self:Print(sidebar == "text" and "Sidebar: names." or "Sidebar: symbols (names are in the tooltips).")
     elseif cmd == "settings" or cmd == "options" or cmd == "config" then
         self.Options:Toggle()
+    elseif cmd == "welcome" then
+        self.Welcome:Show()
     elseif cmd == "groupview" then
         self.UI:Create()
         if not self.UI.frame:IsShown() then self.UI:Show() end
