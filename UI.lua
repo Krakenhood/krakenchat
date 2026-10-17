@@ -163,7 +163,11 @@ function UI.FoldedWidth() return sideWidth() + 2 end
 --------------------------------------------------------------------------------
 
 local fileCache = {}
-local function resolveFile(path)
+local resolveFile
+-- Is this file in the client? (the view editor offers only symbols that are)
+function UI.HasFile(path) return resolveFile(path) and true or false end
+
+function resolveFile(path)
     -- our own files aren't in the game's file list; they're always there
     if not GetFileIDFromPath or path:find("^Interface\\AddOns\\") then return path end
     local id = fileCache[path]
@@ -190,10 +194,14 @@ end
 -- symbol, or the stream's.
 function UI.SetSymbol(tex, s)
     if s and s.view then
-        setFile(tex, KC.Symbols.view)
-        tex:SetVertexColor(1, 1, 1)
+        if not (s.icon and setFile(tex, { s.icon })) then setFile(tex, KC.Symbols.view) end
+        -- a gold symbol: the icon in grey, tinted gold
+        local gold = s.icon and s.gold
+        if tex.SetDesaturated then tex:SetDesaturated(gold and true or false) end
+        if gold then tex:SetVertexColor(unpack(KC.GoldTint)) else tex:SetVertexColor(1, 1, 1) end
         return
     end
+    if tex.SetDesaturated then tex:SetDesaturated(false) end
     if s and s.sec == "conv" and s.class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[s.class] then
         local c = CLASS_ICON_TCOORDS[s.class]
         tex:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
@@ -1650,7 +1658,9 @@ function UI:ViewRows()
     end
     for _, v in ipairs(settings.views) do
         local key = "v:" .. v.id
-        rows[#rows + 1] = { key = key, label = KC:ViewLabel(key), badge = badgeFor(v.keys) }
+        local badge = badgeFor(v.keys)
+        badge.icon, badge.gold = v.icon, v.gold
+        rows[#rows + 1] = { key = key, label = KC:ViewLabel(key), badge = badge }
     end
     if settings.view == "combo" and KC:ViewKeys("combo") then
         rows[#rows + 1] = { key = "combo", label = KC:ViewLabel("combo"), badge = badgeFor(settings.combo) }

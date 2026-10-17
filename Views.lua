@@ -135,6 +135,31 @@ function Editor:Create()
     end)
     self.name = name
 
+    -- the view's symbol: a row of presets, the chosen one in a gold frame
+    local label = D.Text(f, 10, Theme.accent)
+    label:SetPoint("TOPLEFT", 16, -74)
+    label:SetText("SYMBOL")
+    self.icons = {}
+    local x = 0
+    for _, choice in ipairs(KC.ViewIcons) do
+        local path = choice.path
+        if UI.HasFile(path) then
+            local b = CreateFrame("Button", nil, f)
+            b:SetSize(26, 26)
+            b:SetPoint("TOPLEFT", 16 + x, -90)
+            b.ring = D.Solid(b, "BACKGROUND", Theme.accent, 0.95)
+            b.ring:SetAllPoints()
+            b.tex = b:CreateTexture(nil, "ARTWORK")
+            b.tex:SetPoint("TOPLEFT", 2, -2)
+            b.tex:SetPoint("BOTTOMRIGHT", -2, 2)
+            UI.SetSymbol(b.tex, { view = true, icon = path, gold = choice.gold })
+            b.path, b.gold = path, choice.gold
+            b:SetScript("OnClick", function(self) Editor:SetIcon(self.path, self.gold) end)
+            self.icons[#self.icons + 1] = b
+            x = x + 30
+        end
+    end
+
     self.headers, self.boxes = {}, {}
 end
 
@@ -148,7 +173,11 @@ function Editor:Refresh()
     local on = {}
     for _, k in ipairs(v.keys) do on[k] = true end
 
-    local y, hi, bi = 74, 0, 0
+    for _, b in ipairs(self.icons) do
+        b.ring:SetShown(b.path == v.icon and (b.gold and true or false) == (v.gold and true or false))
+    end
+
+    local y, hi, bi = 124, 0, 0
     local colW = (WIDTH - 32) / COLS
     for _, sec in ipairs(candidates()) do
         hi = hi + 1
@@ -184,6 +213,14 @@ function Editor:Refresh()
         y = y + 4
     end
     f:SetSize(WIDTH, y + 16)
+end
+
+function Editor:SetIcon(path, gold)
+    local v = self:View()
+    if not v then return end
+    v.icon, v.gold = path, gold or nil
+    self:Refresh()
+    KC.UI:RenderSidebar()
 end
 
 function Editor:Open(viewKey)

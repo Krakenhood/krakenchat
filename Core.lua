@@ -214,7 +214,7 @@ function KC:AddGroupView()
     settings.nextViewId = id + 1
     local keys = {}
     for _, k in ipairs(GROUP_VIEW) do keys[#keys + 1] = k end
-    table.insert(settings.views, 1, { id = id, name = "Group & nearby", keys = keys })
+    table.insert(settings.views, 1, { id = id, name = "Group & nearby", keys = keys, icon = KC.GroupViewIcon, gold = true })
     return "v:" .. id
 end
 
@@ -246,6 +246,10 @@ function KC:LoadDB()
     if not settings.viewsSeeded then
         settings.viewsSeeded = true
         self:AddGroupView()
+    end
+    -- made before views had symbols: the ready-made one gets its gold group
+    for _, v in ipairs(settings.views) do
+        if v.name == "Group & nearby" and not v.icon then v.icon, v.gold = KC.GroupViewIcon, true end
     end
     self.char = fill(KrakenChatCharDB, CHAR_DEFAULTS)
     for key, s in pairs(self.char.streams) do

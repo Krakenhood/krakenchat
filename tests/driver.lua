@@ -672,6 +672,23 @@ KC.UI.menuEntries[2].func()
 check(KrakenChatViewEditor:IsShown() and E.name:GetText() == "Group & nearby", "the editor opens with the view's name")
 local function box(key) for _, b in ipairs(E.boxes) do if b:IsShown() and b.key == key then return b end end end
 check(box("raid") and box("officer") and box("progress"), "it offers every stream, also ones nobody has used yet")
+check(settings.views[1].icon and settings.views[1].icon:find("GroupNeedMore") and settings.views[1].gold, "'Group & nearby' has the group symbol in gold")
+check(#E.icons >= 10, "a row of symbols to choose from (" .. #E.icons .. ")")
+local coin
+for _, b in ipairs(E.icons) do if b.path:find("Coin") then coin = b end end
+Click(coin)
+check(settings.views[1].icon == coin.path and coin.ring:IsShown(), "clicking one makes it the view's symbol, framed in gold")
+local symTex = CreateFrame("Frame"):CreateTexture()
+KC.UI.SetSymbol(symTex, { view = true, icon = coin.path })
+check(symTex._file == coin.path, "the sidebar shows it")
+KC.UI.SetSymbol(symTex, { view = true })
+check(symTex._file:find("Scroll"), "a view without one gets the scroll")
+local tint
+function symTex:SetVertexColor(r, g, b) tint = { r, g, b } end
+KC.UI.SetSymbol(symTex, { view = true, icon = KC.GroupViewIcon, gold = true })
+check(tint and tint[3] < 0.5, "a gold symbol is tinted gold")
+E.icons[1]._scripts.OnClick(E.icons[1])
+check(settings.views[1].gold and E.icons[1].ring:IsShown() and not E.icons[2].ring:IsShown(), "the gold group and the plain group are told apart")
 check(box("yell").tick[1]:IsShown() and not box("guild").tick[1]:IsShown(), "ticked: what the view shows")
 KC.UI:Select("v:1")
 Click(box("yell"))
