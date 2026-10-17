@@ -51,7 +51,7 @@ local ENTRIES = {
         enabled = popsAtAll,
     },
     {
-        label = "Close again after 5 seconds (stays while you point at it)",
+        label = "Close again after 5 seconds",
         get = function() return settings().popReturn end,
         set = function(v) settings().popReturn = v end,
         enabled = popsAtAll,
