@@ -187,8 +187,14 @@ local DEFAULTS = {
         style = "wow",         -- the WoW style; the teal "flat" look is parked
         sidebar = "text",      -- "text", "symbols" or "round"
         openOnWhisper = true,  -- a whisper unfolds the chat while it's folded in
+        openOnGroup = false,   -- ...and so do party, raid and instance lines
+        popWhenFolded = true,  -- pop up when the chat is folded in
+        popWhenClosed = true,  -- pop up when the window is closed
+        popReturn = true,      -- go back after a few seconds unless you use it
         quietCounts = true,    -- small grey unread counts for Say, Yell, Emotes and channels
         muted = {},            -- stream key -> true: left out of "All messages" (false: shown)
+        views = {},            -- saved views: { id, name?, keys = { stream keys } }, shown under "Views"
+        combo = {},            -- the streams combined with Ctrl+click right now (view "combo")
         fold = {},             -- stream key -> true/false: overrides the default folding in "All messages"
         minimap = { angle = 225, hide = false },
         window = {},
@@ -197,7 +203,33 @@ local DEFAULTS = {
 
 local CHAR_DEFAULTS = { streams = {}, nextId = 1 }
 
+-- The ready-made view: your group and what's said around you, with loot and
+-- system lines; no channels, no whispers. Added once at the start, and again
+-- with /kc groupview. Returns its key.
+local GROUP_VIEW = { "party", "raid", "instance", "say", "yell", "loot", "system" }
+
+function KC:AddGroupView()
+    local settings = self.db.settings
+    local id = settings.nextViewId or 1
+    settings.nextViewId = id + 1
+    local keys = {}
+    for _, k in ipairs(GROUP_VIEW) do keys[#keys + 1] = k end
+    table.insert(settings.views, 1, { id = id, name = "Group & nearby", keys = keys, icon = KC.GroupViewIcon, gold = true })
+    return "v:" .. id
+end
+
+-- The saved view that shows your group: "Group & nearby" if it's there.
+function KC:GroupViewKey()
+    for _, v in ipairs(self.db.settings.views) do
+        for _, k in ipairs(v.keys) do
+            if k == "party" or k == "raid" or k == "instance" then return "v:" .. v.id end
+        end
+    end
+end
+
 function KC:LoadDB()
+    -- nothing saved yet: a fresh install, which gets the welcome (sidebar choice)
+    self.firstRun = type(KrakenChatDB) ~= "table" or type(KrakenChatDB.settings) ~= "table"
     if type(KrakenChatDB) ~= "table" then KrakenChatDB = {} end
     if type(KrakenChatCharDB) ~= "table" then KrakenChatCharDB = {} end
     -- 0.1 kept a theme number; it becomes a style and a sidebar
@@ -209,6 +241,16 @@ function KC:LoadDB()
     self.db = fill(KrakenChatDB, DEFAULTS)
     -- the teal look is parked for now: everyone gets the WoW style
     self.db.settings.style = "wow"
+    -- one ready-made view, once: deleting it is final
+    local settings = self.db.settings
+    if not settings.viewsSeeded then
+        settings.viewsSeeded = true
+        self:AddGroupView()
+    end
+    -- made before views had symbols: the ready-made one gets its gold group
+    for _, v in ipairs(settings.views) do
+        if v.name == "Group & nearby" and not v.icon then v.icon, v.gold = KC.GroupViewIcon, true end
+    end
     self.char = fill(KrakenChatCharDB, CHAR_DEFAULTS)
     for key, s in pairs(self.char.streams) do
         if type(s.msgs) ~= "table" then s.msgs = {} end
@@ -271,6 +313,8 @@ local HELP = {
     "|cff4fd1c5/kc compact|r: fold the chat in, keeping only the stream list",
     "|cff4fd1c5/kc symbols|r: sidebar as symbols or names (|cff4fd1c5/kc symbols round|r for round ones)",
     "|cff4fd1c5/kc settings|r: open the settings window",
+    "|cff4fd1c5/kc welcome|r: the first-start choice between symbols and names",
+    "|cff4fd1c5/kc groupview|r: bring back the \"Group & nearby\" view",
     "|cff4fd1c5/kc whisperopen|r: whether a whisper unfolds the folded-in chat",
     "|cff4fd1c5/kc blizzard|r: hide or show the game's own chat window",
     "|cff4fd1c5/kc minimap|r: show or hide the minimap button",
@@ -309,6 +353,13 @@ function KC:Slash(input)
         self:Print(sidebar == "text" and "Sidebar: names." or "Sidebar: symbols (names are in the tooltips).")
     elseif cmd == "settings" or cmd == "options" or cmd == "config" then
         self.Options:Toggle()
+    elseif cmd == "welcome" then
+        self.Welcome:Show()
+    elseif cmd == "groupview" then
+        self.UI:Create()
+        if not self.UI.frame:IsShown() then self.UI:Show() end
+        self.UI:Select(self:AddGroupView())
+        self:Print('"Group & nearby" is back under Views.')
     elseif cmd == "whisperopen" then
         settings.openOnWhisper = not settings.openOnWhisper
         self:Print("A whisper " .. (settings.openOnWhisper and "unfolds the chat." or "no longer unfolds the chat."))

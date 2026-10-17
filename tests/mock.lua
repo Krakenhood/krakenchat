@@ -89,6 +89,8 @@ function Object:GetCenter() return 100, 100 end
 function Object:GetEffectiveScale() return 1 end
 function Object:GetFrameLevel() return 1 end
 function Object:SetFont() return true end
+function Object:SetAlpha(a) rawset(self, "_alpha", a) end
+function Object:GetAlpha() return self._alpha or 1 end
 function Object:SetTexture(f) rawset(self, "_file", f) end
 function Object:SetColorTexture(r, g, b, a) rawset(self, "_color", { r, g, b, a }) end
 
@@ -127,6 +129,7 @@ STANDARD_TEXT_FONT = "Fonts\\FRIZQT__.TTF"
 function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end
 function GetCursorPosition() if CURSOR then return CURSOR[1], CURSOR[2] end return 0, 0 end
 function IsShiftKeyDown() return false end
+function IsControlKeyDown() return CTRL == true end
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 function Ambiguate(name) return (name:gsub("%-Forever$", "")) end

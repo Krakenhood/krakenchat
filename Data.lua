@@ -216,6 +216,7 @@ KC.Symbols = {
     bnet     = { "Interface\\FriendsFrame\\Battlenet-Battleneticon", I .. "INV_Letter_02" },
     channel  = { I .. "INV_Misc_Note_01", I .. "INV_Scroll_03" },
     unknown  = { I .. "INV_Misc_QuestionMark" },
+    view     = { I .. "INV_Scroll_03", I .. "INV_Misc_Note_02" }, -- a view without a symbol of its own
 }
 
 -- Say, Yell and Emotes share the game's speech bubble, coloured like their
@@ -224,6 +225,20 @@ KC.SymbolTints = {
     yell = { type = "YELL", r = 1, g = 0.25, b = 0.25 },
     emote = { type = "EMOTE", r = 1, g = 0.5, b = 0.25 },
 }
+
+-- Symbols to choose from for a view (in the view editor). `gold`: shown in
+-- grey and tinted gold, so it differs from the stream with the same icon.
+KC.ViewIcons = {
+    { path = I .. "INV_Misc_GroupNeedMore", gold = true },
+    { path = I .. "INV_Misc_GroupNeedMore" }, { path = I .. "INV_Misc_GroupLooking" },
+    { path = I .. "Ability_Warrior_RallyingCry" }, { path = I .. "INV_Misc_Bag_08" },
+    { path = I .. "INV_Misc_Coin_02" }, { path = I .. "INV_Misc_Map_01" },
+    { path = I .. "INV_Shield_06" }, { path = I .. "INV_Sword_04" }, { path = I .. "INV_Crown_01" },
+    { path = I .. "INV_Misc_Head_Dragon_01" }, { path = I .. "INV_Scroll_03" }, { path = I .. "INV_Letter_15" },
+}
+KC.GoldTint = { 1, 0.80, 0.30 }
+-- "Group & nearby": the party's group symbol, in gold
+KC.GroupViewIcon = I .. "INV_Misc_GroupNeedMore"
 
 -- Channels by a word in their name (lower case), first match wins: "Trade
 -- (Services)" is services before it is trade.

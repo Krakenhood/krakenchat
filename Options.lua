@@ -24,13 +24,39 @@ local function refreshAll()
 end
 
 -- Each entry: a tick box (get/set) or a header.
+local function popsAtAll() return settings().openOnWhisper or settings().openOnGroup end
+
 local ENTRIES = {
-    { header = "Behaviour" },
+    { header = "Auto-open chat" },
     {
-        label = "Open the chat when someone whispers you",
+        label = "On whispers",
         get = function() return settings().openOnWhisper end,
         set = function(v) settings().openOnWhisper = v end,
     },
+    {
+        label = "On party and raid messages",
+        get = function() return settings().openOnGroup end,
+        set = function(v) settings().openOnGroup = v end,
+    },
+    {
+        label = "...when it's folded in",
+        get = function() return settings().popWhenFolded end,
+        set = function(v) settings().popWhenFolded = v end,
+        enabled = popsAtAll,
+    },
+    {
+        label = "...when it's closed",
+        get = function() return settings().popWhenClosed end,
+        set = function(v) settings().popWhenClosed = v end,
+        enabled = popsAtAll,
+    },
+    {
+        label = "Close again after 5 seconds (stays while you point at it)",
+        get = function() return settings().popReturn end,
+        set = function(v) settings().popReturn = v end,
+        enabled = popsAtAll,
+    },
+    { header = "Behaviour" },
     {
         label = "Count new lines in Say, Yell and channels",
         get = function() return settings().quietCounts end,
@@ -107,7 +133,9 @@ local ENTRIES = {
     },
 }
 
-local function makeCheck(parent, D)
+-- A tick box with a label (also used by the view editor).
+function Options.CheckBox(parent)
+    local D = KC.UI.Draw
     local b = CreateFrame("Button", nil, parent)
     b:SetHeight(ROW)
     b.box = CreateFrame("Frame", nil, b)
@@ -126,6 +154,14 @@ local function makeCheck(parent, D)
     b.label = D.Text(b, 12)
     b.label:SetPoint("LEFT", b.box, "RIGHT", 8, 0)
     b.label:SetPoint("RIGHT", 0, 0)
+    function b:SetChecked(on)
+        for _, s in ipairs(self.tick) do s:SetShown(on and true or false) end
+    end
+    return b
+end
+
+local function makeCheck(parent)
+    local b = Options.CheckBox(parent)
     b:SetScript("OnClick", function(self)
         if self.entry.enabled and not self.entry.enabled() then return end
         self.entry.set(not self.entry.get())
@@ -217,7 +253,7 @@ function Options:Create()
             self.steppers = self.steppers or {}
             self.steppers[#self.steppers + 1] = w
         else
-            w = makeCheck(f, D)
+            w = makeCheck(f)
             w.entry = e
             w.label:SetText(e.label)
             self.rows[#self.rows + 1] = w

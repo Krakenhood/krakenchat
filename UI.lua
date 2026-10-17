@@ -155,12 +155,19 @@ local function sideWidth()
     return KC:Look().symbols and SYMBOL_W or SIDE_W
 end
 
+-- The window's width when folded in to the stream list.
+function UI.FoldedWidth() return sideWidth() + 2 end
+
 --------------------------------------------------------------------------------
 -- Symbols
 --------------------------------------------------------------------------------
 
 local fileCache = {}
-local function resolveFile(path)
+local resolveFile
+-- Is this file in the client? (the view editor offers only symbols that are)
+function UI.HasFile(path) return resolveFile(path) and true or false end
+
+function resolveFile(path)
     -- our own files aren't in the game's file list; they're always there
     if not GetFileIDFromPath or path:find("^Interface\\AddOns\\") then return path end
     local id = fileCache[path]
@@ -186,6 +193,15 @@ end
 -- The symbol of a stream: a class icon for a whisper partner, the channel's own
 -- symbol, or the stream's.
 function UI.SetSymbol(tex, s)
+    if s and s.view then
+        if not (s.icon and setFile(tex, { s.icon })) then setFile(tex, KC.Symbols.view) end
+        -- a gold symbol: the icon in grey, tinted gold
+        local gold = s.icon and s.gold
+        if tex.SetDesaturated then tex:SetDesaturated(gold and true or false) end
+        if gold then tex:SetVertexColor(unpack(KC.GoldTint)) else tex:SetVertexColor(1, 1, 1) end
+        return
+    end
+    if tex.SetDesaturated then tex:SetDesaturated(false) end
     if s and s.sec == "conv" and s.class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[s.class] then
         local c = CLASS_ICON_TCOORDS[s.class]
         tex:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
@@ -237,7 +253,19 @@ local function bnetAccountName(tag)
     end
 end
 
+-- In a view, the reply bar writes to its first stream you can write in (Party first).
+local function viewReplyKey(view)
+    local keys = KC:ViewKeys(view)
+    if not keys then return nil end
+    for _, k in ipairs(keys) do
+        if KC:Stream(k) and UI:ReplyText(k) then return k end
+    end
+end
+
 function UI:ReplyText(key)
+    local vk = viewReplyKey(key)
+    if vk then return self:ReplyText(vk) end
+    if KC:ViewKeys(key) then return "Click to chat" end
     local s = KC:Stream(key)
     if key == "all" or not s then return "Click to chat" end
     if s.sec == "conv" then return "Reply to " .. s.label end
@@ -247,6 +275,8 @@ function UI:ReplyText(key)
 end
 
 function UI:Reply(key)
+    local vk = viewReplyKey(key)
+    if vk then return self:Reply(vk) end
     local s = KC:Stream(key)
     if key == "all" or not s then return KC.OpenChat("") end
     if s.bn then
@@ -442,12 +472,20 @@ end
 
 function factories.streamClick(self, button)
     if button == "RightButton" then
-        if self.key ~= "all" then UI:StreamMenu(self, self.key) end
+        if KC:ViewKeys(self.key) and self.key ~= "combo" then UI:ViewMenu(self, self.key)
+        elseif self.key ~= "all" then UI:StreamMenu(self, self.key) end
     else
-        UI:Select(self.key)
+        local ctrl = IsControlKeyDown and IsControlKeyDown()
+        if ctrl and self.key ~= "all" and not KC:ViewKeys(self.key) then
+            UI:Combine(self.key)
+        else
+            UI:Select(self.key)
+        end
         if KC.db.settings.chatCollapsed then UI:ToggleChat() end
     end
 end
+
+UI.StreamClick = factories.streamClick
 
 -- A stream as a symbol, for /kc symbols. The name is in the tooltip.
 function factories.icon(parent)
@@ -779,7 +817,26 @@ function UI:CreateContent(f)
     gear:SetScript("OnClick", function() KC.Options:Toggle() end)
     self.gear = gear
 
-    self:CreateSearch(f, gear, title)
+    -- "+": a new view (several streams in one feed), made in the view editor
+    local plus = CreateFrame("Button", nil, f)
+    plus:SetSize(18, 18)
+    plus:SetPoint("RIGHT", gear, "LEFT", -2, 0)
+    plus.strokes = Strokes(plus, 10, Theme.dim, { 0, 90 })
+    plus:SetScript("OnEnter", function(self)
+        for _, s in ipairs(self.strokes) do s:SetColorTexture(rgb(Theme.text)) end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("New view", 1, 1, 1)
+        GameTooltip:AddLine("Several streams together in one feed", 0.78, 0.72, 0.6)
+        GameTooltip:Show()
+    end)
+    plus:SetScript("OnLeave", function(self)
+        for _, s in ipairs(self.strokes) do s:SetColorTexture(rgb(Theme.dim)) end
+        GameTooltip:Hide()
+    end)
+    plus:SetScript("OnClick", function() KC.ViewEditor:NewWith(nil) end)
+    self.plus = plus
+
+    self:CreateSearch(f, plus, title)
 
     local headLine = Solid(f, "ARTWORK", Theme.line)
     headLine:SetHeight(1)
@@ -951,7 +1008,7 @@ local CHAT_PARTS = { "scroll", "track", "thumb", "empty", "footer" }
 function UI:ApplyChat()
     local f, folded = self.frame, KC.db.settings.chatCollapsed and true or false
     local win = KC.db.settings.window
-    local narrow = sideWidth() + 2
+    local narrow = UI.FoldedWidth()
     for _, key in ipairs(CHAT_PARTS) do self[key]:SetShown(not folded) end
     if folded then
         -- the chat comes back at the bottom (ToggleChat), so nothing is "new below"
@@ -1241,7 +1298,8 @@ function UI:RenderFeed()
     end
     self.dirty = false
     local view = KC.db.settings.view
-    if view ~= "all" and not KC:Stream(view) then
+    local mixed = KC:ViewKeys(view) ~= nil
+    if view ~= "all" and not mixed and not KC:Stream(view) then
         view = "all"
         KC.db.settings.view = view
     end
@@ -1277,7 +1335,7 @@ function UI:RenderFeed()
         w:SetWidth(width)
         local h
         if item.type == "msg" then
-            h = layoutMsg(w, item, width, all)
+            h = layoutMsg(w, item, width, all or mixed) -- tags on lines from several streams
         elseif item.type == "fold" then
             w.id = item.id
             w.chev:SetOpen(item.open)
@@ -1327,7 +1385,7 @@ end
 function UI:RefreshHeader()
     local view = KC.db.settings.view
     local s = KC:Stream(view)
-    local name = view == "all" and "All messages" or (s and s.label) or ""
+    local name = view == "all" and "All messages" or KC:ViewLabel(view) or (s and s.label) or ""
     if KC:IsMuted(view) then name = name .. ' (hidden in "All messages")' end
     self.viewTitle:SetText(name)
     -- with names in the sidebar the open stream is plain to see; with symbols
@@ -1336,6 +1394,7 @@ function UI:RefreshHeader()
     self.viewTitle:SetShown(not folded and KC:Look().symbols and not self.search:IsShown())
     self.glass:SetShown(not folded)
     self.gear:SetShown(not folded)
+    self.plus:SetShown(not folded)
     local reply = self:ReplyText(view)
     self.footer:SetShown(reply ~= nil and not folded)
     if reply then self.footer.text:SetText(reply) end
@@ -1374,7 +1433,7 @@ UI.StreamFlag = streamFlag
 
 local function fillStream(w, key, label, s)
     local settings = KC.db.settings
-    local selected = settings.view == key
+    local selected = settings.view == key or (settings.view == "combo" and KC.Contains(KC:ViewKeys("combo"), key))
     w.key = key
     w.sel:SetShown(selected)
     w.stripe:SetShown(selected)
@@ -1419,6 +1478,28 @@ function UI:RenderSidebar()
     fillStream(w, "all", "All messages", nil)
     w.label:SetPoint("LEFT", 12, 0)
     y = y + 22
+
+    -- saved views, and what Ctrl+click is combining right now
+    local views = self:ViewRows()
+    if #views > 0 then
+        local h = acquire("section", child)
+        h:SetPoint("TOPLEFT", 0, -y)
+        h.id = "views"
+        h.label:SetText("VIEWS")
+        local collapsed = KC.db.settings.collapsed.views
+        h.chev:SetOpen(not collapsed)
+        h.extra:SetText("")
+        y = y + 24
+        if not collapsed then
+            for _, v in ipairs(views) do
+                local row = acquire("stream", child)
+                row:SetPoint("TOPLEFT", 0, -y)
+                row.label:SetPoint("LEFT", 20, 0)
+                fillStream(row, v.key, v.label, v.badge)
+                y = y + 20
+            end
+        end
+    end
 
     local bySection = {}
     for _, s in pairs(KC.char.streams) do
@@ -1499,6 +1580,12 @@ function UI:RenderSymbols()
     w:SetPoint("TOPLEFT", 0, -y)
     fillIcon(w, "all", "All messages", nil)
     y = y + 34
+    for _, v in ipairs(self:ViewRows()) do
+        local row = acquire("icon", child)
+        row:SetPoint("TOPLEFT", 0, -y)
+        fillIcon(row, v.key, v.label, v.badge)
+        y = y + 34
+    end
 
     local bySection = {}
     for _, s in pairs(KC.char.streams) do
@@ -1538,6 +1625,96 @@ function UI:SetLook(style, sidebar)
     self:RenderFeed()
     -- a different frame and colours are built at load
     if KC:Look().palette ~= KC.palette and StaticPopup_Show then StaticPopup_Show("KRAKENCHAT_RELOAD") end
+end
+
+-- The rows under "Views": each saved view, and an unsaved Ctrl+click combination.
+-- `badge` stands in for a stream: the views' unread lines, in the colour of the
+-- most urgent one.
+function UI:ViewRows()
+    local settings = KC.db.settings
+    local rows = {}
+    -- Only the most urgent level counts: 1 party line and 40 Trade lines show
+    -- a red 1, not a red 41.
+    local function badgeFor(keys)
+        local red, gold, quiet = 0, 0, 0
+        for _, k in ipairs(keys) do
+            local s = KC:Stream(k)
+            if s and s.unread > 0 then
+                local b = UI.BadgeKind(s)
+                if b == true then red = red + s.unread
+                elseif b == false then gold = gold + s.unread
+                else quiet = quiet + s.unread end
+            end
+        end
+        local fake = { view = true }
+        if red > 0 then
+            fake.unread, fake.sec = red, "conv"
+        elseif gold > 0 then
+            fake.unread, fake.sec, fake.key = gold, "group", "guild"
+        else
+            fake.unread, fake.sec = quiet, "near"
+        end
+        return fake
+    end
+    for _, v in ipairs(settings.views) do
+        local key = "v:" .. v.id
+        local badge = badgeFor(v.keys)
+        badge.icon, badge.gold = v.icon, v.gold
+        rows[#rows + 1] = { key = key, label = KC:ViewLabel(key), badge = badge }
+    end
+    if settings.view == "combo" and KC:ViewKeys("combo") then
+        rows[#rows + 1] = { key = "combo", label = KC:ViewLabel("combo"), badge = badgeFor(settings.combo) }
+    end
+    return rows
+end
+
+-- Ctrl+click: adds the stream to what's on screen, or takes it out again.
+function UI:Combine(key)
+    local settings = KC.db.settings
+    local current = settings.view
+    local keys = {}
+    for _, k in ipairs(KC:ViewKeys(current) or (current ~= "all" and KC:Stream(current) and { current }) or {}) do
+        keys[#keys + 1] = k
+    end
+    local found = false
+    for i, k in ipairs(keys) do
+        if k == key then table.remove(keys, i); found = true; break end
+    end
+    if not found then keys[#keys + 1] = key end
+    if #keys == 0 then return self:Select("all") end
+    if #keys == 1 then return self:Select(keys[1]) end
+    settings.combo = keys
+    self:Select("combo")
+end
+
+function UI:SaveCombo()
+    local settings = KC.db.settings
+    local keys = KC:ViewKeys("combo")
+    if not keys then return end
+    local id = settings.nextViewId or 2
+    settings.nextViewId = id + 1
+    local copy = {}
+    for _, k in ipairs(keys) do copy[#copy + 1] = k end
+    table.insert(settings.views, { id = id, keys = copy })
+    settings.combo = {}
+    self:Select("v:" .. id)
+end
+
+function UI:DeleteView(key)
+    local settings = KC.db.settings
+    local _, saved = KC:ViewKeys(key)
+    for i, v in ipairs(settings.views) do
+        if v == saved then table.remove(settings.views, i) break end
+    end
+    if settings.view == key then self:Select("all") else self:RenderSidebar() end
+end
+
+function UI:ViewMenu(anchor, key)
+    self:ShowMenu(anchor, {
+        { header = KC:ViewLabel(key) or "View" },
+        { text = "Edit view...", func = function() KC.ViewEditor:Open(key) end },
+        { text = "Delete view", danger = true, func = function() UI:DeleteView(key) end },
+    })
 end
 
 function UI:Select(key)
@@ -1636,8 +1813,11 @@ function UI:StreamMenu(anchor, key)
     if not s then return end
     local settings = KC.db.settings
     local muted, folds = KC:IsMuted(key), KC:Folds(s)
-    local entries = {
-        { header = s.label },
+    local entries = { { header = s.label } }
+    if settings.view == "combo" and KC:ViewKeys("combo") then
+        entries[#entries + 1] = { text = "Save as view: " .. KC:ViewLabel("combo"), func = function() UI:SaveCombo() end }
+    end
+    for _, e in ipairs({
         { text = muted and 'Show in "All messages"' or 'Hide in "All messages"', func = function()
             settings.muted[key] = not muted
             UI:RenderSidebar()
@@ -1648,10 +1828,11 @@ function UI:StreamMenu(anchor, key)
             UI:RenderSidebar()
             UI:RenderFeed()
         end },
-    }
+    }) do entries[#entries + 1] = e end
     if self:ReplyText(key) then
         entries[#entries + 1] = { text = s.sec == "conv" and "Whisper" or "Write here", func = function() UI:Reply(key) end }
     end
+    entries[#entries + 1] = { text = "Show together with...", func = function() KC.ViewEditor:NewWith(key) end }
     entries[#entries + 1] = { text = s.sec == "conv" and "Close conversation" or "Clear history", danger = true, func = function()
         KC:CloseStream(key)
     end }
@@ -1770,21 +1951,12 @@ end
 
 local function inView(s)
     local view = KC.db.settings.view
-    return view == s.key or (view == "all" and not KC:IsMuted(s.key))
+    return view == s.key or (view == "all" and not KC:IsMuted(s.key)) or KC.Contains(KC:ViewKeys(view), s.key)
 end
 
 KC:Listen("MESSAGE", function(m, s, isRepeat)
-    -- a whisper brings the chat back, closed or folded in, open on its conversation
-    local settings = KC.db.settings
-    if s.sec == "conv" and not m.o and not isRepeat and settings.openOnWhisper and not KC.demoing then
-        local closed = not (UI.frame and UI.frame:IsShown())
-        if closed or settings.chatCollapsed then
-            UI:Show()
-            UI:Select(s.key)
-            if settings.chatCollapsed then UI:ToggleChat() end
-            return
-        end
-    end
+    -- a whisper (or a party line) may open a folded-in or closed chat (Popup.lua)
+    if KC.Popup:Consider(m, s, isRepeat) then return end
     if not inView(s) then
         UI:Request("side")
         return

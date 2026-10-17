@@ -30,6 +30,16 @@ check(#KC.missingEvents == 0, "all events registered: " .. table.concat(KC.missi
 check(KrakenChatFrame and KrakenChatFrame:IsShown(), "window opens at login")
 check(KC.db.settings.shown == true, "window remembered as open")
 check(KC.db.settings.view == "all", "starts on All messages")
+check(KC.firstRun and KrakenChatWelcome and KrakenChatWelcome:IsShown(), "a fresh install shows the welcome: symbols or names")
+Click(KC.Welcome.symbols)
+check(KC.db.settings.sidebar == "symbols" and not KrakenChatWelcome:IsShown(), "picking Symbols sets the sidebar and closes it")
+SlashCmdList.KRAKENCHAT("welcome")
+check(KrakenChatWelcome:IsShown(), "/kc welcome shows it again")
+Click(KC.Welcome.names)
+check(KC.db.settings.sidebar == "text", "picking Names")
+KC:LoadDB()
+check(not KC.firstRun, "after that it's not a first start any more")
+KC:CloseStream("addons") -- the confirmations it printed
 check(KC.db.settings.collapsed.channels and KC.db.settings.collapsed.game and KC.db.settings.collapsed.near and not KC.db.settings.collapsed.conv, "busy sections start folded, conversations open")
 check(KC.db.settings.chatCollapsed == true and KrakenChatFrame:GetWidth() < 200, "a new window starts small, folded to the stream list")
 check(KC.Blizzard.active and ChatFrame1:GetParent() ~= UIParent and ChatFrame2Tab:GetParent() ~= UIParent, "the game's chat windows and tabs are hidden")
@@ -395,8 +405,8 @@ SlashCmdList.KRAKENCHAT("settings")
 local O = KC.Options
 check(KrakenChatOptionsFrame and KrakenChatOptionsFrame:IsShown(), "/kc settings opens the settings window")
 local function row(text) for _, r in ipairs(O.rows) do if r.entry.label:find(text, 1, true) then return r end end end
-local unfold = row("Open the chat")
-check(unfold and unfold.tick[1]:IsShown(), "'Open the chat when someone whispers you' is ticked by default")
+local unfold = row("On whispers")
+check(unfold and unfold.tick[1]:IsShown(), "'On whispers' is ticked by default")
 Click(unfold)
 check(KC.db.settings.openOnWhisper == false and not unfold.tick[1]:IsShown(), "unticking it switches it off")
 Click(unfold)
@@ -588,6 +598,172 @@ check(sawShort, "a name too long for the sidebar becomes 'Misseseseses H.'")
 CAPTURE, TRUNCATE = nil, nil
 KC:CloseStream("w:misseseseseshazecaller")
 
+section("views")
+local settings = KC.db.settings
+check(settings.views[1] and settings.views[1].name == "Group & nearby", "a ready-made view: 'Group & nearby'")
+check(KC.Contains(settings.views[1].keys, "party") and KC.Contains(settings.views[1].keys, "yell") and KC.Contains(settings.views[1].keys, "loot") and KC.Contains(settings.views[1].keys, "system"), "with Party, Yell, Loot and System")
+Say("PARTY", "pull?", "Thalianne", "Player-1-T")
+Say("YELL", "FOR THE HORDE", "Grukk")
+Say("LOOT", "You receive loot: [Silk Cloth].")
+Say("SYSTEM", "You are now AFK.")
+Say("GUILD", "guild talk", "Brontor", "Player-1-B")
+KC.UI:Select("v:1")
+local vl = items("v:1")
+local function has(list, text) return find(list, function(i) return i.type == "msg" and i.e.m.x == text end) end
+check(has(vl, "pull?") and has(vl, "FOR THE HORDE") and has(vl, "You receive loot: [Silk Cloth].") and has(vl, "You are now AFK."), "the view shows party, yell, loot and system lines together")
+check(not has(vl, "guild talk"), "but not guild")
+check(not find(vl, function(i) return i.type == "fold" end), "nothing is folded away in a view")
+CAPTURE = {}
+KC.UI:RenderFeed()
+local tagged = false
+for _, t in ipairs(CAPTURE) do if type(t) == "string" and t:find("[Yell]", 1, true) then tagged = true end end
+CAPTURE = nil
+check(tagged, "lines carry their stream's tag")
+check(KC.UI.viewTitle:GetText() == "Group & nearby", "the header names the view")
+check(KC.UI.footer.text:GetText() == "Write in Party", "the reply bar writes to Party")
+Say("PARTY", "go", "Thalianne", "Player-1-T")
+check(S("party").unread == 0, "lines in the open view are read")
+check(S("guild").unread > 0, "others still count")
+KC.UI:Select("guild")
+Say("PARTY", "wait", "Thalianne", "Player-1-T")
+local vrows = KC.UI:ViewRows()
+check(vrows[1].key == "v:1" and vrows[1].badge.unread >= 1 and KC.UI.BadgeKind(vrows[1].badge) == true, "a view's badge is red when the party is waiting")
+S("say").unread = 40
+local partyUnread = S("party").unread
+vrows = KC.UI:ViewRows()
+check(vrows[1].badge.unread == partyUnread, "and counts only the red lines: Say's 40 don't inflate it (" .. vrows[1].badge.unread .. ")")
+S("party").unread = 0
+vrows = KC.UI:ViewRows()
+check(vrows[1].badge.unread == 40 and KC.UI.BadgeKind(vrows[1].badge) == "quiet", "with nothing red: Say's grey 40")
+S("party").unread, S("say").unread = partyUnread, 0
+
+-- Ctrl+click
+KC.UI:Select("party")
+KC.UI:Combine("loot")
+check(settings.view == "combo" and #settings.combo == 2, "Ctrl+click Loot while on Party: both together")
+KC.UI:Combine("ch:trade")
+check(#settings.combo == 3 and KC:ViewLabel("combo") == "Party + Loot & gold + Trade", "a third one: " .. tostring(KC:ViewLabel("combo")))
+KC.UI:Combine("ch:trade")
+check(#settings.combo == 2, "Ctrl+click again takes it out")
+local rows2 = KC.UI:ViewRows()
+check(rows2[#rows2].key == "combo", "the combination shows under Views until saved")
+KC.UI:StreamMenu(nil, "party")
+check(KC.UI.menuEntries[2].text:find("Save as view", 1, true), "right-click offers 'Save as view'")
+KC.UI.menuEntries[2].func()
+check(#settings.views == 2 and settings.view == "v:" .. settings.views[2].id, "saved: a second view, now open")
+check(KC:ViewLabel(settings.view) == "Party + Loot & gold", "named after its streams")
+KC.UI:Combine("loot") -- from a saved view: a new combination, the view stays
+check(settings.view == "party" and #settings.views == 2, "Ctrl+click from a saved view starts a new combination, the view stays")
+-- clicking a sidebar row with Ctrl held
+KC.UI:Select("say")
+CTRL = true
+KC.UI.StreamClick({ key = "yell" }, "LeftButton")
+CTRL = false
+check(settings.view == "combo" and KC:ViewLabel("combo") == "Say + Yell", "Ctrl+click on a row combines it with what's open")
+KC.UI.StreamClick({ key = "guild" }, "LeftButton")
+check(settings.view == "guild", "a plain click opens just that stream again")
+
+-- the view editor
+local E = KC.ViewEditor
+local n0 = #settings.views
+KC.UI:ViewMenu(nil, "v:1")
+check(KC.UI.menuEntries[2].text == "Edit view...", "right-click on a view: 'Edit view...'")
+KC.UI.menuEntries[2].func()
+check(KrakenChatViewEditor:IsShown() and E.name:GetText() == "Group & nearby", "the editor opens with the view's name")
+local function box(key) for _, b in ipairs(E.boxes) do if b:IsShown() and b.key == key then return b end end end
+check(box("raid") and box("officer") and box("progress"), "it offers every stream, also ones nobody has used yet")
+check(settings.views[1].icon and settings.views[1].icon:find("GroupNeedMore") and settings.views[1].gold, "'Group & nearby' has the group symbol in gold")
+check(#E.icons >= 10, "a row of symbols to choose from (" .. #E.icons .. ")")
+local coin
+for _, b in ipairs(E.icons) do if b.path:find("Coin") then coin = b end end
+Click(coin)
+check(settings.views[1].icon == coin.path and coin.ring:IsShown(), "clicking one makes it the view's symbol, framed in gold")
+local symTex = CreateFrame("Frame"):CreateTexture()
+KC.UI.SetSymbol(symTex, { view = true, icon = coin.path })
+check(symTex._file == coin.path, "the sidebar shows it")
+KC.UI.SetSymbol(symTex, { view = true })
+check(symTex._file:find("Scroll"), "a view without one gets the scroll")
+local tint
+function symTex:SetVertexColor(r, g, b) tint = { r, g, b } end
+KC.UI.SetSymbol(symTex, { view = true, icon = KC.GroupViewIcon, gold = true })
+check(tint and tint[3] < 0.5, "a gold symbol is tinted gold")
+E.icons[1]._scripts.OnClick(E.icons[1])
+check(settings.views[1].gold and E.icons[1].ring:IsShown() and not E.icons[2].ring:IsShown(), "the gold group and the plain group are told apart")
+check(box("yell").tick[1]:IsShown() and not box("guild").tick[1]:IsShown(), "ticked: what the view shows")
+KC.UI:Select("v:1")
+Click(box("yell"))
+check(not KC.Contains(settings.views[1].keys, "yell") and not has(items("v:1"), "FOR THE HORDE"), "unticking Yell takes it out of the view right away")
+Click(box("guild"))
+check(KC.Contains(settings.views[1].keys, "guild") and has(items("v:1"), "guild talk"), "ticking Guild adds it")
+Click(box("guild"))
+Click(box("yell"))
+E.name:SetText("My group")
+E.name._scripts.OnTextChanged(E.name, true)
+check(settings.views[1].name == "My group" and KC.UI.viewTitle:GetText() == "My group", "renaming shows in the header")
+E.name:SetText("")
+E.name._scripts.OnTextChanged(E.name, true)
+check(settings.views[1].name == nil and KC:ViewLabel("v:1"):find("Party + Raid", 1, true), "an empty name: named after its streams")
+settings.views[1].name = "Group & nearby"
+KrakenChatViewEditor:Hide()
+check(#settings.views == n0, "closing the editor keeps the view")
+
+-- "Show together with..."
+KC.UI:StreamMenu(nil, "guild")
+local together
+for _, e in ipairs(KC.UI.menuEntries) do if e.text == "Show together with..." then together = e end end
+check(together, "right-click on a stream: 'Show together with...'")
+together.func()
+check(#settings.views == n0 + 1 and settings.view == "v:" .. settings.views[n0 + 1].id and KrakenChatViewEditor:IsShown(), "it makes a new view with that stream, open in the chat and the editor")
+Click(box("ch:trade"))
+check(KC:ViewLabel(settings.view) == "Guild + Trade", "ticking Trade: Guild + Trade")
+KrakenChatViewEditor:Hide()
+check(#settings.views == n0 + 1, "a new view with two streams stays")
+KC.UI:DeleteView("v:" .. settings.views[n0 + 1].id)
+KC.UI:StreamMenu(nil, "guild")
+for _, e in ipairs(KC.UI.menuEntries) do if e.text == "Show together with..." then e.func() end end
+KrakenChatViewEditor:Hide()
+check(#settings.views == n0 and settings.view == "guild", "closed with just the one stream: no view, back on that stream")
+
+KC.UI:ViewMenu(nil, "v:1")
+KC.UI.menuEntries[3].func()
+check(#settings.views == 1 and settings.views[1].name == nil, "'Delete view' removes the ready-made one")
+KC:LoadDB()
+check(#KC.db.settings.views == 1, "and it doesn't come back after a reload")
+SlashCmdList.KRAKENCHAT("groupview")
+check(#KC.db.settings.views == 2 and KC.db.settings.views[1].name == "Group & nearby" and KC.Contains(KC.db.settings.views[1].keys, "loot"), "/kc groupview brings it back")
+check(KC.db.settings.view == "v:" .. KC.db.settings.views[1].id, "and opens it")
+
+-- badges while the chat is folded in, with symbols
+settings.sidebar = "symbols"
+KC.UI:Select("guild")
+KC.UI:ToggleChat()
+Say("PARTY", "help!", "Thalianne", "Player-1-T")
+check(S("party").unread >= 1, "folded with symbols: a party line from someone else counts")
+local grow = KC.UI:ViewRows()[1]
+check(grow.badge.unread >= 1 and KC.UI.BadgeKind(grow.badge) == true, "and the group view's symbol gets the red badge")
+Say("PARTY", "my own line", "Krakenhood", "Player-1-ME")
+local before = S("party").unread
+Say("PARTY", "another own line", "Krakenhood", "Player-1-ME")
+check(S("party").unread == before, "your own lines never count")
+-- a party line opens the chat (when ticked)
+check(settings.chatCollapsed, "still folded: opening on party lines is off by default")
+settings.openOnGroup = true
+Say("PARTY", "pull now", "Thalianne", "Player-1-T")
+check(not settings.chatCollapsed and settings.view == "v:" .. settings.views[1].id, "ticked: a party line opens the chat on the group view")
+KC.UI:ToggleChat()
+local kept = {}
+for _, v in ipairs(settings.views) do kept[#kept + 1] = v end
+settings.views = {}
+Say("PARTY", "again", "Thalianne", "Player-1-T")
+check(not settings.chatCollapsed and settings.view == "party", "without a group view: on Party")
+settings.openOnGroup = false
+settings.sidebar = "text"
+settings.views = kept
+KC.UI:Select("all")
+while #settings.views > 0 do KC.UI:DeleteView("v:" .. settings.views[1].id) end
+check(#KC.db.settings.views == 0, "every view can go")
+KC.UI:Select("all")
+
 section("context menu clicks")
 Say("WHISPER", "bye", "Zedd", "Player-1-Z")
 KC.UI:StreamMenu(nil, "w:zedd")
@@ -597,6 +773,70 @@ for _, b in ipairs(KC.UI.menu.buttons) do if b:IsShown() and b.text:GetText() ==
 Click(closeBtn)
 check(S("w:zedd") == nil and not KrakenChatMenu:IsShown(), "clicking 'Close conversation' closes it")
 KC.UI:Select("all")
+
+section("pop-up and going back")
+local P = KC.Popup
+local function tick(sec) local f = P.timer._scripts.OnUpdate; if f then f(P.timer, sec) end end
+KC.UI:Select("all")
+KC.UI:ToggleChat() -- folded in
+Say("WHISPER", "you there?", "Zora", "Player-1-Zo")
+check(not KC.db.settings.chatCollapsed and KC.db.settings.view == "w:zora", "folded in: a whisper pops the chat open on it")
+check(P.active and P.line:IsShown(), "with the gold line counting down")
+tick(2.5)
+check(P.line:GetWidth() < KrakenChatFrame:GetWidth() * 0.6, "the line runs out")
+tick(2.6)
+check(P.active and P.active.going, "after 5 seconds it goes back")
+tick(0.4)
+check(KC.db.settings.chatCollapsed and not P.active, "slid back to the stream list")
+check(S("w:zora").unread >= 1, "and the whisper is still unread: the badge stays")
+Say("WHISPER", "hello??", "Zora", "Player-1-Zo")
+local realOver = KrakenChatFrame.IsMouseOver
+KrakenChatFrame.IsMouseOver = function() return true end
+tick(1)
+KrakenChatFrame.IsMouseOver = realOver
+tick(10)
+check(not KC.db.settings.chatCollapsed and not P.active, "pointing at it: it stays open")
+KC.UI:ToggleChat()
+
+-- closed
+KrakenChatFrame:Hide()
+Say("WHISPER", "ping", "Zora", "Player-1-Zo")
+check(KrakenChatFrame:IsShown(), "closed: a whisper shows the window")
+tick(5.1)
+tick(0.15)
+check(KrakenChatFrame:GetAlpha() < 1 and KrakenChatFrame:GetAlpha() > 0, "fading out")
+tick(0.3)
+check(not KrakenChatFrame:IsShown() and KrakenChatFrame:GetAlpha() == 1, "gone again, ready to show normally next time")
+check(KC.db.settings.chatCollapsed, "and folded in as it was before it was closed")
+KrakenChatFrame:Show()
+
+-- options
+KC.db.settings.popReturn = false
+Say("WHISPER", "stay", "Zora", "Player-1-Zo")
+check(not KC.db.settings.chatCollapsed and not P.active, "without 'go back': it just stays open")
+KC.UI:ToggleChat()
+KC.db.settings.popReturn = true
+KC.db.settings.popWhenFolded = false
+Say("WHISPER", "folded?", "Zora", "Player-1-Zo")
+check(KC.db.settings.chatCollapsed, "'...when folded in' off: a folded chat stays folded")
+KC.db.settings.popWhenFolded = true
+KrakenChatFrame:Hide()
+KC.db.settings.popWhenClosed = false
+Say("WHISPER", "closed?", "Zora", "Player-1-Zo")
+check(not KrakenChatFrame:IsShown(), "'...when closed' off: a closed window stays closed")
+KC.db.settings.popWhenClosed = true
+KrakenChatFrame:Show()
+KC.UI:ToggleChat()
+KC:CloseStream("w:zora")
+KC.UI:Select("all")
+
+section("the + button")
+local nViews = #KC.db.settings.views
+Click(KC.UI.plus)
+check(#KC.db.settings.views == nViews + 1 and KrakenChatViewEditor:IsShown(), "'+' makes a new, empty view and opens the editor")
+check(#KC.db.settings.views[nViews + 1].keys == 0, "with nothing ticked yet")
+KrakenChatViewEditor:Hide()
+check(#KC.db.settings.views == nViews and KC.db.settings.view == "all", "closed without ticking two streams: no view")
 
 section("opening a stream opens its section")
 KC.db.settings.collapsed.channels = true

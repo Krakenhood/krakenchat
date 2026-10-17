@@ -47,12 +47,53 @@ function KC:IsMuted(key)
     return self.db.settings.muted[key] and true or false
 end
 
+--------------------------------------------------------------------------------
+-- Views: several streams in one feed. "combo" is what Ctrl+click put together
+-- just now; "v:<id>" a saved view.
+--------------------------------------------------------------------------------
+
+-- The stream keys of a view (nil for "all" and single streams), and the saved view.
+function KC:ViewKeys(view)
+    local settings = self.db.settings
+    view = view or settings.view
+    if view == "combo" then
+        return #settings.combo > 1 and settings.combo or nil
+    end
+    local id = type(view) == "string" and tonumber(view:match("^v:(%d+)$"))
+    if id then
+        for _, v in ipairs(settings.views) do
+            if v.id == id then return v.keys, v end
+        end
+    end
+end
+
+function KC:ViewLabel(view)
+    local keys, saved = self:ViewKeys(view)
+    if saved and saved.name then return saved.name end
+    if not keys then return nil end
+    local names = {}
+    for _, key in ipairs(keys) do
+        local s = self.char.streams[key] or KC.Fixed[key]
+        names[#names + 1] = s and s.label or key
+    end
+    return table.concat(names, " + ")
+end
+
+local function contains(list, value)
+    for _, v in ipairs(list or {}) do
+        if v == value then return true end
+    end
+    return false
+end
+KC.Contains = contains
+
 -- Is the stream on screen right now (so its new messages are read already)?
 function KC:IsViewing(key)
     local UI = self.UI
     if not (UI and UI.frame and UI.frame:IsShown() and UI.atBottom ~= false) then return false end
     if self.db.settings.chatCollapsed then return false end
-    return self.db.settings.view == key
+    local view = self.db.settings.view
+    return view == key or contains(self:ViewKeys(view), key)
 end
 
 function KC:MarkRead(key)
@@ -67,6 +108,11 @@ function KC:MarkRead(key)
             end
         end
         if changed then self:Fire("UNREAD") end
+        return
+    end
+    local keys = self:ViewKeys(key)
+    if keys then
+        for _, k in ipairs(keys) do self:MarkRead(k) end
         return
     end
     local s = self.char.streams[key]
@@ -324,7 +370,7 @@ end
 function KC:CloseStream(key)
     if not self.char.streams[key] then return end
     self.char.streams[key] = nil
-    if self.db.settings.view == key then self.db.settings.view = "all" end
+    if self.db.settings.view == key or contains(self:ViewKeys(), key) then self.db.settings.view = "all" end
     self:Fire("STREAMS")
     self:Fire("UNREAD")
 end
