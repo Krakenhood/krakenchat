@@ -107,7 +107,9 @@ local ENTRIES = {
     },
 }
 
-local function makeCheck(parent, D)
+-- A tick box with a label (also used by the view editor).
+function Options.CheckBox(parent)
+    local D = KC.UI.Draw
     local b = CreateFrame("Button", nil, parent)
     b:SetHeight(ROW)
     b.box = CreateFrame("Frame", nil, b)
@@ -126,6 +128,14 @@ local function makeCheck(parent, D)
     b.label = D.Text(b, 12)
     b.label:SetPoint("LEFT", b.box, "RIGHT", 8, 0)
     b.label:SetPoint("RIGHT", 0, 0)
+    function b:SetChecked(on)
+        for _, s in ipairs(self.tick) do s:SetShown(on and true or false) end
+    end
+    return b
+end
+
+local function makeCheck(parent)
+    local b = Options.CheckBox(parent)
     b:SetScript("OnClick", function(self)
         if self.entry.enabled and not self.entry.enabled() then return end
         self.entry.set(not self.entry.get())
@@ -217,7 +227,7 @@ function Options:Create()
             self.steppers = self.steppers or {}
             self.steppers[#self.steppers + 1] = w
         else
-            w = makeCheck(f, D)
+            w = makeCheck(f)
             w.entry = e
             w.label:SetText(e.label)
             self.rows[#self.rows + 1] = w

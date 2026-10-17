@@ -645,8 +645,52 @@ check(settings.view == "combo" and KC:ViewLabel("combo") == "Say + Yell", "Ctrl+
 KC.UI.StreamClick({ key = "guild" }, "LeftButton")
 check(settings.view == "guild", "a plain click opens just that stream again")
 
+-- the view editor
+local E = KC.ViewEditor
+local n0 = #settings.views
 KC.UI:ViewMenu(nil, "v:1")
+check(KC.UI.menuEntries[2].text == "Edit view...", "right-click on a view: 'Edit view...'")
 KC.UI.menuEntries[2].func()
+check(KrakenChatViewEditor:IsShown() and E.name:GetText() == "Group & nearby", "the editor opens with the view's name")
+local function box(key) for _, b in ipairs(E.boxes) do if b:IsShown() and b.key == key then return b end end end
+check(box("raid") and box("officer") and box("progress"), "it offers every stream, also ones nobody has used yet")
+check(box("yell").tick[1]:IsShown() and not box("guild").tick[1]:IsShown(), "ticked: what the view shows")
+KC.UI:Select("v:1")
+Click(box("yell"))
+check(not KC.Contains(settings.views[1].keys, "yell") and not has(items("v:1"), "FOR THE HORDE"), "unticking Yell takes it out of the view right away")
+Click(box("guild"))
+check(KC.Contains(settings.views[1].keys, "guild") and has(items("v:1"), "guild talk"), "ticking Guild adds it")
+Click(box("guild"))
+Click(box("yell"))
+E.name:SetText("My group")
+E.name._scripts.OnTextChanged(E.name, true)
+check(settings.views[1].name == "My group" and KC.UI.viewTitle:GetText() == "My group", "renaming shows in the header")
+E.name:SetText("")
+E.name._scripts.OnTextChanged(E.name, true)
+check(settings.views[1].name == nil and KC:ViewLabel("v:1"):find("Party + Raid", 1, true), "an empty name: named after its streams")
+settings.views[1].name = "Group & nearby"
+KrakenChatViewEditor:Hide()
+check(#settings.views == n0, "closing the editor keeps the view")
+
+-- "Show together with..."
+KC.UI:StreamMenu(nil, "guild")
+local together
+for _, e in ipairs(KC.UI.menuEntries) do if e.text == "Show together with..." then together = e end end
+check(together, "right-click on a stream: 'Show together with...'")
+together.func()
+check(#settings.views == n0 + 1 and settings.view == "v:" .. settings.views[n0 + 1].id and KrakenChatViewEditor:IsShown(), "it makes a new view with that stream, open in the chat and the editor")
+Click(box("ch:trade"))
+check(KC:ViewLabel(settings.view) == "Guild + Trade", "ticking Trade: Guild + Trade")
+KrakenChatViewEditor:Hide()
+check(#settings.views == n0 + 1, "a new view with two streams stays")
+KC.UI:DeleteView("v:" .. settings.views[n0 + 1].id)
+KC.UI:StreamMenu(nil, "guild")
+for _, e in ipairs(KC.UI.menuEntries) do if e.text == "Show together with..." then e.func() end end
+KrakenChatViewEditor:Hide()
+check(#settings.views == n0 and settings.view == "guild", "closed with just the one stream: no view, back on that stream")
+
+KC.UI:ViewMenu(nil, "v:1")
+KC.UI.menuEntries[3].func()
 check(#settings.views == 1 and settings.views[1].name == nil, "'Delete view' removes the ready-made one")
 KC:LoadDB()
 check(#KC.db.settings.views == 1, "and it doesn't come back after a reload")

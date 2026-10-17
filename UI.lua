@@ -1671,6 +1671,7 @@ end
 function UI:ViewMenu(anchor, key)
     self:ShowMenu(anchor, {
         { header = KC:ViewLabel(key) or "View" },
+        { text = "Edit view...", func = function() KC.ViewEditor:Open(key) end },
         { text = "Delete view", danger = true, func = function() UI:DeleteView(key) end },
     })
 end
@@ -1790,6 +1791,7 @@ function UI:StreamMenu(anchor, key)
     if self:ReplyText(key) then
         entries[#entries + 1] = { text = s.sec == "conv" and "Whisper" or "Write here", func = function() UI:Reply(key) end }
     end
+    entries[#entries + 1] = { text = "Show together with...", func = function() KC.ViewEditor:NewWith(key) end }
     entries[#entries + 1] = { text = s.sec == "conv" and "Close conversation" or "Clear history", danger = true, func = function()
         KC:CloseStream(key)
     end }
