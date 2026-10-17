@@ -189,6 +189,8 @@ local DEFAULTS = {
         openOnWhisper = true,  -- a whisper unfolds the chat while it's folded in
         quietCounts = true,    -- small grey unread counts for Say, Yell, Emotes and channels
         muted = {},            -- stream key -> true: left out of "All messages" (false: shown)
+        views = {},            -- saved views: { id, name?, keys = { stream keys } }, shown under "Views"
+        combo = {},            -- the streams combined with Ctrl+click right now (view "combo")
         fold = {},             -- stream key -> true/false: overrides the default folding in "All messages"
         minimap = { angle = 225, hide = false },
         window = {},
@@ -209,6 +211,14 @@ function KC:LoadDB()
     self.db = fill(KrakenChatDB, DEFAULTS)
     -- the teal look is parked for now: everyone gets the WoW style
     self.db.settings.style = "wow"
+    -- one ready-made view, once: deleting it is final
+    local settings = self.db.settings
+    if not settings.viewsSeeded then
+        settings.viewsSeeded = true
+        table.insert(settings.views, 1, { id = 1, name = "Group & nearby",
+            keys = { "party", "raid", "instance", "say", "yell", "loot", "system" } })
+        settings.nextViewId = math.max(settings.nextViewId or 1, 2)
+    end
     self.char = fill(KrakenChatCharDB, CHAR_DEFAULTS)
     for key, s in pairs(self.char.streams) do
         if type(s.msgs) ~= "table" then s.msgs = {} end

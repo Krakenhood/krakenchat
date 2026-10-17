@@ -46,6 +46,10 @@ function Feed:Collect(view, query)
         for key, s in pairs(KC.char.streams) do
             if not KC:IsMuted(key) then streams[#streams + 1] = s end
         end
+    elseif KC:ViewKeys(view) then
+        for _, key in ipairs(KC:ViewKeys(view)) do
+            if KC.char.streams[key] then streams[#streams + 1] = KC.char.streams[key] end
+        end
     elseif KC.char.streams[view] then
         streams[1] = KC.char.streams[view]
     end

@@ -588,6 +588,72 @@ check(sawShort, "a name too long for the sidebar becomes 'Misseseseses H.'")
 CAPTURE, TRUNCATE = nil, nil
 KC:CloseStream("w:misseseseseshazecaller")
 
+section("views")
+local settings = KC.db.settings
+check(settings.views[1] and settings.views[1].name == "Group & nearby", "a ready-made view: 'Group & nearby'")
+check(KC.Contains(settings.views[1].keys, "party") and KC.Contains(settings.views[1].keys, "yell") and KC.Contains(settings.views[1].keys, "loot") and KC.Contains(settings.views[1].keys, "system"), "with Party, Yell, Loot and System")
+Say("PARTY", "pull?", "Thalianne", "Player-1-T")
+Say("YELL", "FOR THE HORDE", "Grukk")
+Say("LOOT", "You receive loot: [Silk Cloth].")
+Say("SYSTEM", "You are now AFK.")
+Say("GUILD", "guild talk", "Brontor", "Player-1-B")
+KC.UI:Select("v:1")
+local vl = items("v:1")
+local function has(list, text) return find(list, function(i) return i.type == "msg" and i.e.m.x == text end) end
+check(has(vl, "pull?") and has(vl, "FOR THE HORDE") and has(vl, "You receive loot: [Silk Cloth].") and has(vl, "You are now AFK."), "the view shows party, yell, loot and system lines together")
+check(not has(vl, "guild talk"), "but not guild")
+check(not find(vl, function(i) return i.type == "fold" end), "nothing is folded away in a view")
+CAPTURE = {}
+KC.UI:RenderFeed()
+local tagged = false
+for _, t in ipairs(CAPTURE) do if type(t) == "string" and t:find("[Yell]", 1, true) then tagged = true end end
+CAPTURE = nil
+check(tagged, "lines carry their stream's tag")
+check(KC.UI.viewTitle:GetText() == "Group & nearby", "the header names the view")
+check(KC.UI.footer.text:GetText() == "Write in Party", "the reply bar writes to Party")
+Say("PARTY", "go", "Thalianne", "Player-1-T")
+check(S("party").unread == 0, "lines in the open view are read")
+check(S("guild").unread > 0, "others still count")
+KC.UI:Select("guild")
+Say("PARTY", "wait", "Thalianne", "Player-1-T")
+local vrows = KC.UI:ViewRows()
+check(vrows[1].key == "v:1" and vrows[1].badge.unread >= 1 and KC.UI.BadgeKind(vrows[1].badge) == true, "a view's badge sums its streams, red when the party is waiting")
+
+-- Ctrl+click
+KC.UI:Select("party")
+KC.UI:Combine("loot")
+check(settings.view == "combo" and #settings.combo == 2, "Ctrl+click Loot while on Party: both together")
+KC.UI:Combine("ch:trade")
+check(#settings.combo == 3 and KC:ViewLabel("combo") == "Party + Loot & gold + Trade", "a third one: " .. tostring(KC:ViewLabel("combo")))
+KC.UI:Combine("ch:trade")
+check(#settings.combo == 2, "Ctrl+click again takes it out")
+local rows2 = KC.UI:ViewRows()
+check(rows2[#rows2].key == "combo", "the combination shows under Views until saved")
+KC.UI:StreamMenu(nil, "party")
+check(KC.UI.menuEntries[2].text:find("Save as view", 1, true), "right-click offers 'Save as view'")
+KC.UI.menuEntries[2].func()
+check(#settings.views == 2 and settings.view == "v:" .. settings.views[2].id, "saved: a second view, now open")
+check(KC:ViewLabel(settings.view) == "Party + Loot & gold", "named after its streams")
+KC.UI:Combine("loot") -- from a saved view: a new combination, the view stays
+check(settings.view == "party" and #settings.views == 2, "Ctrl+click from a saved view starts a new combination, the view stays")
+-- clicking a sidebar row with Ctrl held
+KC.UI:Select("say")
+CTRL = true
+KC.UI.StreamClick({ key = "yell" }, "LeftButton")
+CTRL = false
+check(settings.view == "combo" and KC:ViewLabel("combo") == "Say + Yell", "Ctrl+click on a row combines it with what's open")
+KC.UI.StreamClick({ key = "guild" }, "LeftButton")
+check(settings.view == "guild", "a plain click opens just that stream again")
+
+KC.UI:ViewMenu(nil, "v:1")
+KC.UI.menuEntries[2].func()
+check(#settings.views == 1 and settings.views[1].name == nil, "'Delete view' removes the ready-made one")
+KC:LoadDB()
+check(#KC.db.settings.views == 1, "and it doesn't come back after a reload")
+KC.UI:DeleteView("v:" .. KC.db.settings.views[1].id)
+check(#KC.db.settings.views == 0, "the saved one can go too")
+KC.UI:Select("all")
+
 section("context menu clicks")
 Say("WHISPER", "bye", "Zedd", "Player-1-Z")
 KC.UI:StreamMenu(nil, "w:zedd")

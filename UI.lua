@@ -186,6 +186,11 @@ end
 -- The symbol of a stream: a class icon for a whisper partner, the channel's own
 -- symbol, or the stream's.
 function UI.SetSymbol(tex, s)
+    if s and s.view then
+        setFile(tex, KC.Symbols.view)
+        tex:SetVertexColor(1, 1, 1)
+        return
+    end
     if s and s.sec == "conv" and s.class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[s.class] then
         local c = CLASS_ICON_TCOORDS[s.class]
         tex:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
@@ -237,7 +242,19 @@ local function bnetAccountName(tag)
     end
 end
 
+-- In a view, the reply bar writes to its first stream you can write in (Party first).
+local function viewReplyKey(view)
+    local keys = KC:ViewKeys(view)
+    if not keys then return nil end
+    for _, k in ipairs(keys) do
+        if KC:Stream(k) and UI:ReplyText(k) then return k end
+    end
+end
+
 function UI:ReplyText(key)
+    local vk = viewReplyKey(key)
+    if vk then return self:ReplyText(vk) end
+    if KC:ViewKeys(key) then return "Click to chat" end
     local s = KC:Stream(key)
     if key == "all" or not s then return "Click to chat" end
     if s.sec == "conv" then return "Reply to " .. s.label end
@@ -247,6 +264,8 @@ function UI:ReplyText(key)
 end
 
 function UI:Reply(key)
+    local vk = viewReplyKey(key)
+    if vk then return self:Reply(vk) end
     local s = KC:Stream(key)
     if key == "all" or not s then return KC.OpenChat("") end
     if s.bn then
@@ -442,12 +461,20 @@ end
 
 function factories.streamClick(self, button)
     if button == "RightButton" then
-        if self.key ~= "all" then UI:StreamMenu(self, self.key) end
+        if KC:ViewKeys(self.key) and self.key ~= "combo" then UI:ViewMenu(self, self.key)
+        elseif self.key ~= "all" then UI:StreamMenu(self, self.key) end
     else
-        UI:Select(self.key)
+        local ctrl = IsControlKeyDown and IsControlKeyDown()
+        if ctrl and self.key ~= "all" and not KC:ViewKeys(self.key) then
+            UI:Combine(self.key)
+        else
+            UI:Select(self.key)
+        end
         if KC.db.settings.chatCollapsed then UI:ToggleChat() end
     end
 end
+
+UI.StreamClick = factories.streamClick
 
 -- A stream as a symbol, for /kc symbols. The name is in the tooltip.
 function factories.icon(parent)
@@ -1241,7 +1268,8 @@ function UI:RenderFeed()
     end
     self.dirty = false
     local view = KC.db.settings.view
-    if view ~= "all" and not KC:Stream(view) then
+    local mixed = KC:ViewKeys(view) ~= nil
+    if view ~= "all" and not mixed and not KC:Stream(view) then
         view = "all"
         KC.db.settings.view = view
     end
@@ -1277,7 +1305,7 @@ function UI:RenderFeed()
         w:SetWidth(width)
         local h
         if item.type == "msg" then
-            h = layoutMsg(w, item, width, all)
+            h = layoutMsg(w, item, width, all or mixed) -- tags on lines from several streams
         elseif item.type == "fold" then
             w.id = item.id
             w.chev:SetOpen(item.open)
@@ -1327,7 +1355,7 @@ end
 function UI:RefreshHeader()
     local view = KC.db.settings.view
     local s = KC:Stream(view)
-    local name = view == "all" and "All messages" or (s and s.label) or ""
+    local name = view == "all" and "All messages" or KC:ViewLabel(view) or (s and s.label) or ""
     if KC:IsMuted(view) then name = name .. ' (hidden in "All messages")' end
     self.viewTitle:SetText(name)
     -- with names in the sidebar the open stream is plain to see; with symbols
@@ -1374,7 +1402,7 @@ UI.StreamFlag = streamFlag
 
 local function fillStream(w, key, label, s)
     local settings = KC.db.settings
-    local selected = settings.view == key
+    local selected = settings.view == key or (settings.view == "combo" and KC.Contains(KC:ViewKeys("combo"), key))
     w.key = key
     w.sel:SetShown(selected)
     w.stripe:SetShown(selected)
@@ -1419,6 +1447,28 @@ function UI:RenderSidebar()
     fillStream(w, "all", "All messages", nil)
     w.label:SetPoint("LEFT", 12, 0)
     y = y + 22
+
+    -- saved views, and what Ctrl+click is combining right now
+    local views = self:ViewRows()
+    if #views > 0 then
+        local h = acquire("section", child)
+        h:SetPoint("TOPLEFT", 0, -y)
+        h.id = "views"
+        h.label:SetText("VIEWS")
+        local collapsed = KC.db.settings.collapsed.views
+        h.chev:SetOpen(not collapsed)
+        h.extra:SetText("")
+        y = y + 24
+        if not collapsed then
+            for _, v in ipairs(views) do
+                local row = acquire("stream", child)
+                row:SetPoint("TOPLEFT", 0, -y)
+                row.label:SetPoint("LEFT", 20, 0)
+                fillStream(row, v.key, v.label, v.badge)
+                y = y + 20
+            end
+        end
+    end
 
     local bySection = {}
     for _, s in pairs(KC.char.streams) do
@@ -1499,6 +1549,12 @@ function UI:RenderSymbols()
     w:SetPoint("TOPLEFT", 0, -y)
     fillIcon(w, "all", "All messages", nil)
     y = y + 34
+    for _, v in ipairs(self:ViewRows()) do
+        local row = acquire("icon", child)
+        row:SetPoint("TOPLEFT", 0, -y)
+        fillIcon(row, v.key, v.label, v.badge)
+        y = y + 34
+    end
 
     local bySection = {}
     for _, s in pairs(KC.char.streams) do
@@ -1538,6 +1594,85 @@ function UI:SetLook(style, sidebar)
     self:RenderFeed()
     -- a different frame and colours are built at load
     if KC:Look().palette ~= KC.palette and StaticPopup_Show then StaticPopup_Show("KRAKENCHAT_RELOAD") end
+end
+
+-- The rows under "Views": each saved view, and an unsaved Ctrl+click combination.
+-- `badge` stands in for a stream: the views' unread lines, in the colour of the
+-- most urgent one.
+function UI:ViewRows()
+    local settings = KC.db.settings
+    local rows = {}
+    local function badgeFor(keys)
+        local n, kind = 0, nil
+        for _, k in ipairs(keys) do
+            local s = KC:Stream(k)
+            if s and s.unread > 0 then
+                n = n + s.unread
+                local b = UI.BadgeKind(s)
+                if b == true then kind = true elseif b == false and kind ~= true then kind = false
+                elseif kind == nil then kind = "quiet" end
+            end
+        end
+        local fake = { unread = n, view = true }
+        if kind == true then fake.sec = "conv" elseif kind == false then fake.sec, fake.key = "group", "guild" else fake.sec = "near" end
+        return fake
+    end
+    for _, v in ipairs(settings.views) do
+        local key = "v:" .. v.id
+        rows[#rows + 1] = { key = key, label = KC:ViewLabel(key), badge = badgeFor(v.keys) }
+    end
+    if settings.view == "combo" and KC:ViewKeys("combo") then
+        rows[#rows + 1] = { key = "combo", label = KC:ViewLabel("combo"), badge = badgeFor(settings.combo) }
+    end
+    return rows
+end
+
+-- Ctrl+click: adds the stream to what's on screen, or takes it out again.
+function UI:Combine(key)
+    local settings = KC.db.settings
+    local current = settings.view
+    local keys = {}
+    for _, k in ipairs(KC:ViewKeys(current) or (current ~= "all" and KC:Stream(current) and { current }) or {}) do
+        keys[#keys + 1] = k
+    end
+    local found = false
+    for i, k in ipairs(keys) do
+        if k == key then table.remove(keys, i); found = true; break end
+    end
+    if not found then keys[#keys + 1] = key end
+    if #keys == 0 then return self:Select("all") end
+    if #keys == 1 then return self:Select(keys[1]) end
+    settings.combo = keys
+    self:Select("combo")
+end
+
+function UI:SaveCombo()
+    local settings = KC.db.settings
+    local keys = KC:ViewKeys("combo")
+    if not keys then return end
+    local id = settings.nextViewId or 2
+    settings.nextViewId = id + 1
+    local copy = {}
+    for _, k in ipairs(keys) do copy[#copy + 1] = k end
+    table.insert(settings.views, { id = id, keys = copy })
+    settings.combo = {}
+    self:Select("v:" .. id)
+end
+
+function UI:DeleteView(key)
+    local settings = KC.db.settings
+    local _, saved = KC:ViewKeys(key)
+    for i, v in ipairs(settings.views) do
+        if v == saved then table.remove(settings.views, i) break end
+    end
+    if settings.view == key then self:Select("all") else self:RenderSidebar() end
+end
+
+function UI:ViewMenu(anchor, key)
+    self:ShowMenu(anchor, {
+        { header = KC:ViewLabel(key) or "View" },
+        { text = "Delete view", danger = true, func = function() UI:DeleteView(key) end },
+    })
 end
 
 function UI:Select(key)
@@ -1636,8 +1771,11 @@ function UI:StreamMenu(anchor, key)
     if not s then return end
     local settings = KC.db.settings
     local muted, folds = KC:IsMuted(key), KC:Folds(s)
-    local entries = {
-        { header = s.label },
+    local entries = { { header = s.label } }
+    if settings.view == "combo" and KC:ViewKeys("combo") then
+        entries[#entries + 1] = { text = "Save as view: " .. KC:ViewLabel("combo"), func = function() UI:SaveCombo() end }
+    end
+    for _, e in ipairs({
         { text = muted and 'Show in "All messages"' or 'Hide in "All messages"', func = function()
             settings.muted[key] = not muted
             UI:RenderSidebar()
@@ -1648,7 +1786,7 @@ function UI:StreamMenu(anchor, key)
             UI:RenderSidebar()
             UI:RenderFeed()
         end },
-    }
+    }) do entries[#entries + 1] = e end
     if self:ReplyText(key) then
         entries[#entries + 1] = { text = s.sec == "conv" and "Whisper" or "Write here", func = function() UI:Reply(key) end }
     end
@@ -1770,7 +1908,7 @@ end
 
 local function inView(s)
     local view = KC.db.settings.view
-    return view == s.key or (view == "all" and not KC:IsMuted(s.key))
+    return view == s.key or (view == "all" and not KC:IsMuted(s.key)) or KC.Contains(KC:ViewKeys(view), s.key)
 end
 
 KC:Listen("MESSAGE", function(m, s, isRepeat)

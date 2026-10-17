@@ -216,6 +216,7 @@ KC.Symbols = {
     bnet     = { "Interface\\FriendsFrame\\Battlenet-Battleneticon", I .. "INV_Letter_02" },
     channel  = { I .. "INV_Misc_Note_01", I .. "INV_Scroll_03" },
     unknown  = { I .. "INV_Misc_QuestionMark" },
+    view     = { I .. "INV_Misc_Book_09", I .. "INV_Misc_Note_02" },
 }
 
 -- Say, Yell and Emotes share the game's speech bubble, coloured like their
