@@ -101,6 +101,12 @@ function CreateFontFamily(name, members)
     return f
 end
 function Object:SetFontObject(f) rawset(self, "_family", f); FONTED[#FONTED + 1] = self end
+-- the game's chat font, a family whose Korean file isn't the one we'd guess
+GAME_ALPHABET_FILES = { roman = "Fonts\\ARIALN.TTF", russian = "Fonts\\ARIALN.TTF", korean = "Fonts\\K_Pagetext.TTF",
+    simplifiedchinese = "Fonts\\ARHei.ttf", traditionalchinese = "Fonts\\bHEI01B.TTF" }
+ChatFontNormal = { GetFontObjectForAlphabet = function(_, a)
+    return { GetFont = function() return GAME_ALPHABET_FILES[a], 14, "" end }
+end }
 function Object:SetAlpha(a) rawset(self, "_alpha", a) end
 function Object:GetAlpha() return self._alpha or 1 end
 function Object:SetTexture(f) rawset(self, "_file", f) end

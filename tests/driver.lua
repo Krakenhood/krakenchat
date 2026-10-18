@@ -976,6 +976,10 @@ for _, fs in ipairs(FONTED) do
     end
 end
 check(families > 20 and plain == 0, ("every text in a font family (%d families, %d plain files)"):format(families, plain))
+local files = {}
+for _, m in ipairs(FONTED[1]._family._members) do files[m.alphabet] = m.file end
+check(files.korean == "Fonts\\K_Pagetext.TTF" and files.traditionalchinese == "Fonts\\bHEI01B.TTF", "the game's own Korean and Chinese files, not guessed ones: " .. tostring(files.korean))
+check(files.roman ~= "Fonts\\ARIALN.TTF", "Latin keeps the addon's font")
 local n = 0
 for _ in pairs(FONT_FAMILIES) do n = n + 1 end
 check(n < 20, n .. " font families, one per size")
