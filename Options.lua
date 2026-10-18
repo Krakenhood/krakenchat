@@ -9,7 +9,6 @@ local Theme = KC.Theme
 local Options = {}
 KC.Options = Options
 
-local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 local WIDTH = 330
 local ROW = 24
 
@@ -225,7 +224,7 @@ function Options:Create()
     local wow = KC:Look().palette == "wow"
     local title = D.Text(f, wow and 15 or 13, wow and Theme.accent or nil)
     title:SetPoint("TOPLEFT", 12, -10)
-    if wow then pcall(title.SetFont, title, "Fonts\\MORPHEUS.TTF", 15, "") end
+    if wow then KC.SetFont(title, 15, "", "title") end
     title:SetText("Settings")
 
     local close = CreateFrame("Button", nil, f)

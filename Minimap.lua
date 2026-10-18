@@ -89,7 +89,7 @@ local function createButton()
         t:AddMaskTexture(m)
     end
     pip.count = pip:CreateFontString(nil, "OVERLAY")
-    pip.count:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF", 9, "")
+    KC.SetFont(pip.count, 9)
     pip.count:SetPoint("CENTER", 0, 0)
     pip.count:SetTextColor(1, 1, 1)
     button.pip = pip

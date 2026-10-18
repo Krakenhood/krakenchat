@@ -88,6 +88,63 @@ function KC.ClassColor(class)
 end
 
 --------------------------------------------------------------------------------
+-- Fonts. A single font file only has the letters it was made for: the
+-- game's own FRIZQT__.TTF has no Cyrillic, Korean or Chinese, so a Russian
+-- message set in it shows as boxes. The game's chat uses font families that
+-- switch to a matching file for each alphabet; KC.SetFont makes the same kind
+-- of family for every size we use.
+--------------------------------------------------------------------------------
+
+KC.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+
+local ALPHABETS = {
+    normal = {
+        roman = KC.FONT,
+        russian = "Fonts\\FRIZQT___CYR.TTF",
+        korean = "Fonts\\2002.TTF",
+        simplifiedchinese = "Fonts\\ARKai_T.ttf",
+        traditionalchinese = "Fonts\\blei00d.TTF",
+    },
+    title = {
+        roman = "Fonts\\MORPHEUS.TTF",
+        russian = "Fonts\\MORPHEUS_CYR.TTF",
+        korean = "Fonts\\2002.TTF",
+        simplifiedchinese = "Fonts\\ARKai_T.ttf",
+        traditionalchinese = "Fonts\\blei00d.TTF",
+    },
+}
+local families = {}
+
+local function family(kind, size, flags)
+    local key = kind .. size .. flags
+    local font = families[key]
+    if font ~= nil then return font end
+    font = false
+    if CreateFontFamily then
+        local members = {}
+        for _, alphabet in ipairs({ "roman", "korean", "simplifiedchinese", "traditionalchinese", "russian" }) do
+            members[#members + 1] = { alphabet = alphabet, file = ALPHABETS[kind][alphabet], height = size, flags = flags }
+        end
+        local ok, f = pcall(CreateFontFamily, "KrakenChatFont_" .. key:gsub("%W", ""), members)
+        if ok and f then font = f end
+    end
+    families[key] = font
+    return font
+end
+
+-- `kind` "normal" (the default) or "title" (the fantasy font). True when the
+-- font was set (a title may fail on a client without the fantasy font).
+function KC.SetFont(fs, size, flags, kind)
+    kind, flags = kind or "normal", flags or ""
+    local font = family(kind, size, flags)
+    if font and pcall(fs.SetFontObject, fs, font) then return true end
+    -- a client without font families: the plain file, Latin letters only
+    if kind == "title" then return pcall(fs.SetFont, fs, ALPHABETS.title.roman, size, flags) end
+    fs:SetFont(KC.FONT, size, flags)
+    return true
+end
+
+--------------------------------------------------------------------------------
 -- Chat output
 --------------------------------------------------------------------------------
 

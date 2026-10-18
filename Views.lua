@@ -10,7 +10,6 @@ local Theme = KC.Theme
 local Editor = {}
 KC.ViewEditor = Editor
 
-local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 local WIDTH = 440
 local COLS = 3
 local ROW = 22
@@ -97,7 +96,7 @@ function Editor:Create()
     local wow = KC:Look().palette == "wow"
     local title = D.Text(f, 15, wow and Theme.accent or nil)
     title:SetPoint("TOPLEFT", 12, -10)
-    if wow then pcall(title.SetFont, title, "Fonts\\MORPHEUS.TTF", 15, "") end
+    if wow then KC.SetFont(title, 15, "", "title") end
     title:SetText("Edit view")
 
     local close = CreateFrame("Button", nil, f)
@@ -111,7 +110,7 @@ function Editor:Create()
     name:SetSize(WIDTH - 32, 22)
     name:SetPoint("TOPLEFT", 16, -42)
     name:SetAutoFocus(false)
-    name:SetFont(FONT, 12, "")
+    KC.SetFont(name, 12)
     name:SetTextColor(D.rgb(Theme.text))
     name:SetTextInsets(8, 8, 0, 0)
     name:SetMaxLetters(40)

@@ -10,7 +10,6 @@ local Theme = KC.Theme
 local Welcome = {}
 KC.Welcome = Welcome
 
-local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 local WIDTH, HEIGHT = 470, 300
 local CARD_W, CARD_H = 205, 180
 
@@ -112,7 +111,7 @@ function Welcome:Create()
 
     local title = D.Text(f, 16, Theme.accent)
     title:SetPoint("TOPLEFT", 14, -9)
-    if not pcall(title.SetFont, title, "Fonts\\MORPHEUS.TTF", 17, "") then title:SetFont(FONT, 15, "") end
+    if not KC.SetFont(title, 17, "", "title") then KC.SetFont(title, 15) end
     title:SetText("Welcome to KrakenChat")
 
     local close = CreateFrame("Button", nil, f)

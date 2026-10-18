@@ -90,7 +90,17 @@ function Object:GetPoint() return "CENTER", nil, "CENTER", 0, 0 end
 function Object:GetCenter() return 100, 100 end
 function Object:GetEffectiveScale() return 1 end
 function Object:GetFrameLevel() return 1 end
-function Object:SetFont() return true end
+-- every text that got a font: a plain file (Latin only) or a font family
+FONTED = {}
+function Object:SetFont(file) rawset(self, "_file", file); FONTED[#FONTED + 1] = self; return true end
+FONT_FAMILIES = {}
+function CreateFontFamily(name, members)
+    if FONT_FAMILIES[name] then error("a font family called " .. name .. " exists already") end
+    local f = { _name = name, _members = members }
+    FONT_FAMILIES[name] = f
+    return f
+end
+function Object:SetFontObject(f) rawset(self, "_family", f); FONTED[#FONTED + 1] = self end
 function Object:SetAlpha(a) rawset(self, "_alpha", a) end
 function Object:GetAlpha() return self._alpha or 1 end
 function Object:SetTexture(f) rawset(self, "_file", f) end

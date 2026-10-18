@@ -17,7 +17,6 @@ local FOOTER = 26
 local PAD = 10
 local TIME_W = 38
 local INDENT = 16
-local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 
 --------------------------------------------------------------------------------
 -- Drawing helpers (the same look as Krakenfriends)
@@ -33,7 +32,7 @@ end
 
 local function Text(parent, size, color, justify)
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    fs:SetFont(FONT, size or 12, "")
+    KC.SetFont(fs, size or 12)
     fs:SetShadowOffset(1, -1)
     fs:SetShadowColor(0, 0, 0, 0.75)
     fs:SetTextColor(rgb(color or Theme.text))
@@ -760,7 +759,7 @@ function UI:CreateContent(f)
     local title = Text(f, wow and 16 or 13, wow and Theme.accent or nil)
     title:SetPoint("TOPLEFT", 12, wow and -9 or -11)
     if wow then
-        if not pcall(title.SetFont, title, "Fonts\\MORPHEUS.TTF", 17, "") then title:SetFont(FONT, 15, "") end
+        if not KC.SetFont(title, 17, "", "title") then KC.SetFont(title, 15) end
         title:SetText("KrakenChat")
     else
         title:SetText("|cff4fd1c5Kraken|rchat")
@@ -1142,7 +1141,7 @@ function UI:CreateSearch(f, anchor, title)
         UI:RefreshHeader()
     end)
     box:SetAutoFocus(false)
-    box:SetFont(FONT, 11, "")
+    KC.SetFont(box, 11)
     box:SetTextColor(rgb(Theme.text))
     box:SetTextInsets(8, 20, 0, 0)
     box:SetMaxLetters(60)
@@ -1255,14 +1254,14 @@ local function layoutMsg(w, item, width, all)
     w.entry = item.e
     w.guide:SetShown(item.indent and true or false)
 
-    w.time:SetFont(FONT, size - 2, "")
+    KC.SetFont(w.time, size - 2)
     w.time:ClearAllPoints()
     w.time:SetPoint("TOPLEFT", x, -top - 1)
     w.time:SetText((timestamps and not item.cont) and date("%H:%M", m.t) or "")
     local bodyX = x + (timestamps and TIME_W or 0)
 
-    w.body:SetFont(FONT, size, "")
-    w.pre:SetFont(FONT, size, "")
+    KC.SetFont(w.body, size)
+    KC.SetFont(w.pre, size)
     w.body:ClearAllPoints()
     w.pre:ClearAllPoints()
     if m.secret then
@@ -1788,11 +1787,11 @@ function UI:ShowMenu(anchor, entries)
         b:SetPoint("TOPRIGHT", -1, -y)
         b.func = e.func
         if e.header then
-            b.text:SetFont(FONT, 10, "")
+            KC.SetFont(b.text, 10)
             b.text:SetTextColor(rgb(Theme.accent))
             b.text:SetText(e.header:upper())
         else
-            b.text:SetFont(FONT, 12, "")
+            KC.SetFont(b.text, 12)
             b.text:SetTextColor(rgb(e.danger and { 1, 0.45, 0.45 } or Theme.text))
             b.text:SetText(e.text)
         end
@@ -1892,7 +1891,7 @@ function UI:ShowCopy(text, hint)
         box:SetPoint("BOTTOMRIGHT", -12, 12)
         box:SetMultiLine(true)
         box:SetAutoFocus(false)
-        box:SetFont(FONT, 12, "")
+        KC.SetFont(box, 12)
         box:SetTextColor(rgb(Theme.text))
         Solid(box, "BACKGROUND", Theme.panel):SetAllPoints()
         box:SetTextInsets(6, 6, 4, 4)

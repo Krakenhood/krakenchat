@@ -964,5 +964,21 @@ SlashCmdList.KRAKENCHAT("")
 check(not KrakenChatFrame:IsShown() and KC.db.settings.shown == false, "/kc closes the window and remembers")
 flush()
 
+section("fonts: a file for every alphabet, so Russian or Korean chat isn't boxes")
+local plain, families = 0, 0
+for _, fs in ipairs(FONTED) do
+    if fs._family then
+        local files = {}
+        for _, m in ipairs(fs._family._members) do files[m.alphabet] = m.file end
+        if files.roman and files.russian and files.korean and files.simplifiedchinese then families = families + 1 end
+    elseif fs._file then
+        plain = plain + 1
+    end
+end
+check(families > 20 and plain == 0, ("every text in a font family (%d families, %d plain files)"):format(families, plain))
+local n = 0
+for _ in pairs(FONT_FAMILIES) do n = n + 1 end
+check(n < 20, n .. " font families, one per size")
+
 print(("\n%d passed, %d failed, %d errors"):format(passed, failed, #ERRORS))
 if failed > 0 or #ERRORS > 0 then error("tests failed") end
