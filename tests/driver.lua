@@ -239,6 +239,28 @@ for _, t in ipairs(CAPTURE) do if type(t) == "string" and t:find("anyone up for 
 check(found, "feed rendered the guild line")
 check(#ERRORS == 0, "rendering with secret lines raised no errors")
 CAPTURE = nil
+-- the game measured a wrapped line as one line (the window had just changed
+-- size); one frame later it knows better and the feed is laid out again
+local function rowHeights()
+    local hs = {}
+    for _, row in ipairs(KC.UI.layout) do if row.w then hs[#hs + 1] = row.h end end
+    return hs
+end
+local short = rowHeights()
+STRING_HEIGHT = 28
+Advance(0.01)
+local tall = rowHeights()
+local grew = 0
+for i, h in ipairs(tall) do if short[i] and h > short[i] then grew = grew + 1 end end
+check(#tall == #short and grew > #tall / 2, "lines measured again a frame later: wrapped lines get their full height (" .. grew .. " of " .. #tall .. ", the rest are secret)")
+local renders = 0
+local orig = KC.UI.RenderFeed
+KC.UI.RenderFeed = function(...) renders = renders + 1; return orig(...) end
+Advance(0.01)
+check(renders == 0, "and once it fits, no further layouts")
+KC.UI.RenderFeed = orig
+STRING_HEIGHT = nil
+KC.UI:RenderFeed()
 KC.UI:Select("party")
 check(KC.UI.footer.text:GetText() == "Write in Party", "party footer")
 KC.UI:Select("loot")

@@ -1284,6 +1284,7 @@ local function layoutMsg(w, item, width, all)
         w.body:SetText(Feed:Line(m, s, all, item.cont))
     end
     local h = KC.clean(w.body:GetStringHeight()) or size
+    w.measured = h
     if type(h) ~= "number" or h < size then h = size end
     h = math.floor(h + 0.5) + top + 2
     w:SetHeight(h)
@@ -1349,10 +1350,11 @@ function UI:RenderFeed()
             w.text:SetText(Feed:DayLabel(item.t):upper())
             h = 24
         end
-        layout[#layout + 1] = { key = itemKey(item), y = y, h = h }
+        layout[#layout + 1] = { key = itemKey(item), y = y, h = h, w = item.type == "msg" and w or nil }
         y = y + h
     end
     self.layout = layout
+    if not self.remeasuring then self:Remeasure() end
     self.child:SetHeight(math.max(1, y + 4))
 
     if #items == 0 then
@@ -1379,6 +1381,27 @@ function UI:RenderFeed()
         self:Scroll(target or scrollY)
     end
     self:RefreshHeader()
+end
+
+-- Right after the window changes size (a pop-up unfolding the chat), the game
+-- can measure wrapped text against the old width: a line that wraps is taken
+-- for one line and the next one is drawn over it. So the lines are measured
+-- once more on the next frame, and laid out again if any came out different.
+function UI:Remeasure()
+    if self.remeasurePending then return end
+    self.remeasurePending = true
+    C_Timer.After(0, function()
+        self.remeasurePending = false
+        for _, row in ipairs(self.layout or {}) do
+            local w = row.w
+            if w and w:IsShown() and (KC.clean(w.body:GetStringHeight()) or w.measured) ~= w.measured then
+                self.remeasuring = true
+                self:RenderFeed()
+                self.remeasuring = false
+                return
+            end
+        end
+    end)
 end
 
 function UI:RefreshHeader()
