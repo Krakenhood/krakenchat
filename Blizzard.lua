@@ -91,11 +91,26 @@ local function unstyleEditBox()
     if skin then for t in pairs(skin) do t:Hide() end end
 end
 
--- Hides the input once you're done typing (the game keeps it on screen otherwise).
+-- Takes the input out of sight once you're done typing (the game keeps it on
+-- screen otherwise). Faded out, not hidden: hiding or showing it runs the
+-- game's chat code, and run from here that code notes the active chat input
+-- with KrakenChat's taint. The game then refuses protected actions that read
+-- it, such as copying a shared map pin's /way command to the clipboard. The
+-- game makes it visible again itself when you press Enter.
 local function tuckAway(box)
     if not Blizz.active or box ~= editBox() then return end
     if box.HasFocus and box:HasFocus() then return end
-    box:Hide()
+    box:SetAlpha(0)
+end
+
+-- After the game's own function, without changing what it does.
+local function after(name, fn)
+    if not hooksecurefunc then return end
+    if ChatFrameUtil and ChatFrameUtil[name] then
+        hooksecurefunc(ChatFrameUtil, name, fn)
+    elseif _G["ChatEdit_" .. name] then
+        hooksecurefunc("ChatEdit_" .. name, fn)
+    end
 end
 
 -- Puts the chat input under the KrakenChat window, at least wide enough to type in.
@@ -116,12 +131,8 @@ end
 function Blizz:Hide()
     if self.active then return end
     self.active = true
-    for _, f in ipairs(frames()) do
-        if saved[f] == nil then
-            saved[f] = f:GetParent() or false
-            pcall(f.SetParent, f, hidden)
-        end
-    end
+    -- the input first: hidden along with its chat window, the game would note
+    -- a new active chat input from here (see tuckAway)
     local box = editBox()
     if box then
         if not editPoints then
@@ -137,19 +148,21 @@ function Blizz:Hide()
             box:HookScript("OnEditFocusLost", function(b)
                 if (b:GetText() or "") == "" then tuckAway(b) end
             end)
-            if hooksecurefunc and ChatEdit_DeactivateChat then
-                hooksecurefunc("ChatEdit_DeactivateChat", tuckAway)
-            end
-            -- and make sure it comes back when you press Enter
-            if hooksecurefunc and ChatEdit_ActivateChat then
-                hooksecurefunc("ChatEdit_ActivateChat", function(b)
-                    if Blizz.active and b == editBox() and not b:IsShown() then b:Show() end
-                end)
-            end
+            after("DeactivateChat", tuckAway)
+            -- the game shows it when you press Enter; we only put it in place
+            after("ActivateChat", function(b)
+                if b == editBox() then Blizz:PlaceEditBox() end
+            end)
         end
         styleEditBox(box)
         self:PlaceEditBox()
         tuckAway(box)
+    end
+    for _, f in ipairs(frames()) do
+        if saved[f] == nil then
+            saved[f] = f:GetParent() or false
+            pcall(f.SetParent, f, hidden)
+        end
     end
 end
 
@@ -163,7 +176,7 @@ function Blizz:Restore()
     local box = editBox()
     if box and editPoints then
         unstyleEditBox()
-        box:Show()
+        box:SetAlpha(1)
         pcall(box.SetParent, box, editPoints.parent or ChatFrame1)
         box:ClearAllPoints()
         for _, p in ipairs(editPoints) do box:SetPoint(unpack(p)) end

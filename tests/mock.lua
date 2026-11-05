@@ -190,6 +190,18 @@ for i = 1, 3 do
     CreateFrame("Button", "ChatFrame" .. i .. "Tab", UIParent)
 end
 ChatFrame1EditBox = CreateFrame("EditBox", "ChatFrame1EditBox", ChatFrame1)
+-- showing or hiding the game's chat input from addon code taints the game's
+-- note of the active input, so the addon must never do either
+EDITBOX_TOGGLES = 0
+function ChatFrame1EditBox:Show() EDITBOX_TOGGLES = EDITBOX_TOGGLES + 1; rawset(self, "_shown", true) end
+function ChatFrame1EditBox:Hide() EDITBOX_TOGGLES = EDITBOX_TOGGLES + 1; rawset(self, "_shown", false) end
+-- hiding a chat window with its input still inside makes the game note a
+-- new active input from the addon's code
+BOX_HIDDEN_WITH_WINDOW = false
+function ChatFrame1:SetParent(p)
+    if ChatFrame1EditBox:GetParent() == ChatFrame1 then BOX_HIDDEN_WITH_WINDOW = true end
+    rawset(self, "_parent", p)
+end
 GeneralDockManager = CreateFrame("Frame", "GeneralDockManager", UIParent)
 function hooksecurefunc(t, name, fn)
     if type(t) == "string" then t, name, fn = _G, t, name end
@@ -197,7 +209,7 @@ function hooksecurefunc(t, name, fn)
     t[name] = function(...) local r = orig(...); fn(...); return r end
 end
 function ChatEdit_DeactivateChat(box) end
-function ChatEdit_ActivateChat(box) end
+function ChatEdit_ActivateChat(box) box:SetAlpha(1) end -- the game's own: shows it, full alpha
 function ChatFrame_DeactivateForTest(box) ChatEdit_DeactivateChat(box) end
 
 C_PartyInfo = { InviteUnit = function(name) INVITED = name end }
