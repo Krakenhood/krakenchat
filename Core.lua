@@ -3,7 +3,7 @@ KrakenChat = KC -- global handle, handy for /dump KrakenChat.db.settings
 
 local floor = math.floor
 
-KC.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "1.1.3"
+KC.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "1.1.4"
 
 --------------------------------------------------------------------------------
 -- Secret-value safety
@@ -350,6 +350,9 @@ function KC:LoadDB()
         old.style, old.sidebar, old.theme = t.style, t.sidebar, nil
     end
     self.db = fill(KrakenChatDB, DEFAULTS)
+    -- the welcome asks until it's answered (a card or its close button), so a
+    -- key press that closed it before anyone saw it doesn't use it up
+    if self.firstRun then self.db.settings.welcomed = false end
     -- the teal look is parked for now: everyone gets the WoW style
     self.db.settings.style = "wow"
     -- one ready-made view, once: deleting it is final

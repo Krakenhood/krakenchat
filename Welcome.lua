@@ -104,7 +104,8 @@ function Welcome:Create()
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    if UISpecialFrames then table.insert(UISpecialFrames, "KrakenChatWelcome") end
+    -- not closed by Escape: on a new character the same key skips the intro
+    -- cinematic, which would close it before anyone saw it
     self.frame = f
 
     if KC:Look().palette == "wow" then UI:CreateWoWFrame(f) else UI:CreateFlatFrame(f) end
@@ -118,7 +119,10 @@ function Welcome:Create()
     close:SetSize(18, 18)
     close:SetPoint("TOPRIGHT", -6, -8)
     D.Strokes(close, 11, Theme.dim, { 45, -45 })
-    close:SetScript("OnClick", function() f:Hide() end)
+    close:SetScript("OnClick", function()
+        KC.db.settings.welcomed = true -- closed: keep the sidebar as it is
+        f:Hide()
+    end)
 
     local ask = D.Text(f, 12, Theme.text, "CENTER")
     ask:SetPoint("TOP", 0, -46)
@@ -142,6 +146,7 @@ end
 function Welcome:Choose(kind)
     local settings = KC.db.settings
     settings.sidebar = kind == "symbols" and "symbols" or "text"
+    settings.welcomed = true
     local UI = KC.UI
     UI:Create()
     UI:ApplyChat()
@@ -152,6 +157,9 @@ function Welcome:Choose(kind)
         or "Names it is.")
 end
 
-KC:Listen("LOGIN", function()
-    if KC.firstRun then Welcome:Show() end
-end)
+-- At every login until it's answered.
+function Welcome:ShowIfUnanswered()
+    if KC.db.settings.welcomed == false then self:Show() end
+end
+
+KC:Listen("LOGIN", function() Welcome:ShowIfUnanswered() end)

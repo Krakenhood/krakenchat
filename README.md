@@ -28,7 +28,7 @@ A chat window for **World of Warcraft: Forever** that doesn't suck. Everything s
 
 ## First start
 
-On a fresh install a small welcome window asks how the sidebar should look, with a preview of each: **Symbols** (slim, names on hover) or **Names**. `/kc welcome` shows it again any time.
+On a fresh install a small welcome window asks how the sidebar should look (at every login until you pick one), with a preview of each: **Symbols** (slim, names on hover) or **Names**. `/kc welcome` shows it again any time.
 
 ## Install
 
