@@ -267,6 +267,15 @@ local orig = KC.UI.RenderFeed
 KC.UI.RenderFeed = function(...) renders = renders + 1; return orig(...) end
 Advance(0.01)
 check(renders == 0, "and once it fits, no further layouts")
+-- and later still: the lines on screen are checked a few times a second
+STRING_HEIGHT = 42
+local watch = KC.UI.heightWatch
+watch._scripts.OnUpdate(watch, 0.1)
+check(renders == 0, "the watch waits a moment between checks")
+watch._scripts.OnUpdate(watch, 0.3)
+check(renders == 1, "a line that changed height later gets its layout redone: " .. renders)
+watch._scripts.OnUpdate(watch, 0.4)
+check(renders == 1, "and only once")
 KC.UI.RenderFeed = orig
 STRING_HEIGHT = nil
 KC.UI:RenderFeed()

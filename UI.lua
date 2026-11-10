@@ -1383,24 +1383,53 @@ function UI:RenderFeed()
     self:RefreshHeader()
 end
 
--- Right after the window changes size (a pop-up unfolding the chat), the game
--- can measure wrapped text against the old width: a line that wraps is taken
--- for one line and the next one is drawn over it. So the lines are measured
--- once more on the next frame, and laid out again if any came out different.
+-- The game can measure wrapped text before it has really laid it out (right
+-- after the window changes size, a pop-up unfolding the chat, and at other
+-- moments): a line that wraps is taken for one line and the next one is drawn
+-- over it. So the lines on screen are measured again on the next frame and
+-- then a few times a second while the chat is open, and the feed is laid out
+-- again when one came out different.
+local function measuredWrong(row)
+    local w = row.w
+    return w and w:IsShown() and (KC.clean(w.body:GetStringHeight()) or w.measured) ~= w.measured
+end
+
+function UI:CheckHeights(onScreen)
+    local top, bottom = -math.huge, math.huge
+    if onScreen then
+        local scrollY = KC.clean(self.scroll:GetVerticalScroll()) or 0
+        local viewH = KC.clean(self.scroll:GetHeight()) or 0
+        if viewH > 0 then top, bottom = scrollY - 40, scrollY + viewH + 40 end
+    end
+    for _, row in ipairs(self.layout or {}) do
+        if row.y + row.h >= top and row.y <= bottom and measuredWrong(row) then
+            self.remeasuring = true
+            self:RenderFeed()
+            self.remeasuring = false
+            return true
+        end
+    end
+    return false
+end
+
 function UI:Remeasure()
+    if not self.heightWatch and self.frame then
+        -- runs only while the window is shown; cheap: the dozen lines on screen
+        local watch = CreateFrame("Frame", nil, self.frame)
+        local since = 0
+        watch:SetScript("OnUpdate", function(_, elapsed)
+            since = since + (elapsed or 0)
+            if since < 0.3 then return end
+            since = 0
+            if not KC.db.settings.chatCollapsed then UI:CheckHeights(true) end
+        end)
+        self.heightWatch = watch
+    end
     if self.remeasurePending then return end
     self.remeasurePending = true
     C_Timer.After(0, function()
         self.remeasurePending = false
-        for _, row in ipairs(self.layout or {}) do
-            local w = row.w
-            if w and w:IsShown() and (KC.clean(w.body:GetStringHeight()) or w.measured) ~= w.measured then
-                self.remeasuring = true
-                self:RenderFeed()
-                self.remeasuring = false
-                return
-            end
-        end
+        self:CheckHeights(false)
     end)
 end
 
