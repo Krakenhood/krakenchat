@@ -87,6 +87,15 @@ function Object:IsTruncated() return TRUNCATE ~= nil and TRUNCATE[self._text] or
 function Object:GetVerticalScroll() return self._scroll or 0 end
 function Object:SetVerticalScroll(v) rawset(self, "_scroll", v) end
 function Object:GetPoint() return "CENTER", nil, "CENTER", 0, 0 end
+function Object:SetPoint(point, rel, relPoint, x, y)
+    local list = rawget(self, "_points") or {}
+    list[#list + 1] = { point, rel, relPoint, x, y }
+    rawset(self, "_points", list)
+end
+function Object:ClearAllPoints() rawset(self, "_points", {}) end
+-- where it really ends on screen, for the tests to set
+function Object:GetTop() return rawget(self, "_top") end
+function Object:GetBottom() return rawget(self, "_bottom") end
 function Object:GetCenter() return 100, 100 end
 function Object:GetEffectiveScale() return 1 end
 function Object:GetFrameLevel() return 1 end

@@ -248,6 +248,29 @@ for _, t in ipairs(CAPTURE) do if type(t) == "string" and t:find("anyone up for 
 check(found, "feed rendered the guild line")
 check(#ERRORS == 0, "rendering with secret lines raised no errors")
 CAPTURE = nil
+-- the game stacks the lines: each hangs from where the text above it ends,
+-- so a wrong measurement can't make two lines overlap
+local hung, first, msgRows = 0, 0, 0
+local prevRow
+for _, row in ipairs(KC.UI.layout) do
+    if row.w then
+        msgRows = msgRows + 1
+        for _, p in ipairs(row.w._points or {}) do
+            if p[1] == "TOPLEFT" and p[2] == KC.UI.child then first = first + 1 end
+            if p[1] == "TOPLEFT" and p[3] == "BOTTOMLEFT" and prevRow and prevRow.w and p[2] == prevRow.w.body then hung = hung + 1 end
+        end
+    end
+    prevRow = row
+end
+check(msgRows > 3 and hung >= msgRows - 4 and first <= 1, "a line hangs from where the text above it ends (" .. hung .. " of " .. msgRows .. ")")
+-- the scroll range follows where the last line really ends, not the estimate
+rawset(KC.UI.child, "_top", 1000)
+rawset(KC.UI.lastRow, "_bottom", 1000 - 5000)
+KC.UI:CheckHeights(false)
+check(KC.UI.child:GetHeight() == 5004, "the scroll range reaches the real end of the last line: " .. tostring(KC.UI.child:GetHeight()))
+rawset(KC.UI.child, "_top", nil)
+rawset(KC.UI.lastRow, "_bottom", nil)
+KC.UI:RenderFeed()
 -- the game measured a wrapped line as one line (the window had just changed
 -- size); one frame later it knows better and the feed is laid out again
 local function rowHeights()

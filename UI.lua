@@ -1259,6 +1259,7 @@ local function layoutMsg(w, item, width, all)
     w.time:SetPoint("TOPLEFT", x, -top - 1)
     w.time:SetText((timestamps and not item.cont) and date("%H:%M", m.t) or "")
     local bodyX = x + (timestamps and TIME_W or 0)
+    local bodyLeft
 
     KC.SetFont(w.body, size)
     KC.SetFont(w.pre, size)
@@ -1272,12 +1273,14 @@ local function layoutMsg(w, item, width, all)
         w.pre:SetPoint("TOPLEFT", bodyX, -top)
         w.pre:Show()
         local preW = KC.clean(w.pre:GetStringWidth()) or 0
-        w.body:SetPoint("TOPLEFT", bodyX + preW + 4, -top)
-        w.body:SetWidth(math.max(40, width - bodyX - preW - 4))
+        bodyLeft = bodyX + preW + 4
+        w.body:SetPoint("TOPLEFT", bodyLeft, -top)
+        w.body:SetWidth(math.max(40, width - bodyLeft))
         w.body:SetTextColor(r, g, b)
         pcall(w.body.SetText, w.body, m.x)
     else
         w.pre:Hide()
+        bodyLeft = bodyX
         w.body:SetPoint("TOPLEFT", bodyX, -top)
         w.body:SetWidth(math.max(40, width - bodyX))
         w.body:SetTextColor(rgb(Theme.text))
@@ -1288,7 +1291,7 @@ local function layoutMsg(w, item, width, all)
     if type(h) ~= "number" or h < size then h = size end
     h = math.floor(h + 0.5) + top + 2
     w:SetHeight(h)
-    return h
+    return h, bodyLeft
 end
 
 function UI:RenderFeed()
@@ -1328,14 +1331,26 @@ function UI:RenderFeed()
     local width = math.max(100, self.frame:GetWidth() - sideWidth() - PAD * 2 - 8)
     self.child:SetWidth(width)
 
+    -- Each line hangs from where the text above it ends, as the game lays it
+    -- out, so two lines can't overlap whatever height the game reports for a
+    -- wrapped one (it can take it for one line). y and h are only estimates,
+    -- for scrolling.
     local y, layout = 0, {}
+    local prev, prevX, gap
     for _, item in ipairs(items) do
         local w = acquire(item.type, self.child)
-        w:SetPoint("TOPLEFT", self.child, "TOPLEFT", 0, -y)
+        if prev then
+            w:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", prevX, -gap)
+        else
+            w:SetPoint("TOPLEFT", self.child, "TOPLEFT", 0, 0)
+        end
+        prev, prevX, gap = w, 0, 0
         w:SetWidth(width)
         local h
         if item.type == "msg" then
-            h = layoutMsg(w, item, width, all or mixed) -- tags on lines from several streams
+            local bodyLeft
+            h, bodyLeft = layoutMsg(w, item, width, all or mixed) -- tags on lines from several streams
+            prev, prevX, gap = w.body, -bodyLeft, 2
         elseif item.type == "fold" then
             w.id = item.id
             w.chev:SetOpen(item.open)
@@ -1346,6 +1361,7 @@ function UI:RenderFeed()
             h = 20
             w:SetHeight(h)
             h = h + 2
+            gap = 2
         else
             w.text:SetText(Feed:DayLabel(item.t):upper())
             h = 24
@@ -1354,6 +1370,7 @@ function UI:RenderFeed()
         y = y + h
     end
     self.layout = layout
+    self.lastRow = prev
     if not self.remeasuring then self:Remeasure() end
     self.child:SetHeight(math.max(1, y + 4))
 
@@ -1394,7 +1411,23 @@ local function measuredWrong(row)
     return w and w:IsShown() and (KC.clean(w.body:GetStringHeight()) or w.measured) ~= w.measured
 end
 
+-- The scroll range from where the last line really ends on screen, not from
+-- the estimate: so the newest line is never cut off below the bottom.
+function UI:FitChild()
+    local last = self.lastRow
+    local top = self.child and KC.clean(self.child:GetTop())
+    local bottom = last and last:IsShown() and KC.clean(last:GetBottom())
+    if type(top) ~= "number" or type(bottom) ~= "number" then return end
+    local h = math.max(1, top - bottom + 4)
+    if math.abs(h - (KC.clean(self.child:GetHeight()) or 0)) > 1 then
+        local stick = self.atBottom ~= false
+        self.child:SetHeight(h)
+        if stick then self:ScrollToBottom() end
+    end
+end
+
 function UI:CheckHeights(onScreen)
+    self:FitChild()
     local top, bottom = -math.huge, math.huge
     if onScreen then
         local scrollY = KC.clean(self.scroll:GetVerticalScroll()) or 0
