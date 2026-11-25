@@ -3,7 +3,7 @@ KrakenChat = KC -- global handle, handy for /dump KrakenChat.db.settings
 
 local floor = math.floor
 
-KC.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "1.1.6"
+KC.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "1.1.7"
 
 --------------------------------------------------------------------------------
 -- Secret-value safety

@@ -1245,6 +1245,13 @@ local function itemKey(item)
 end
 
 -- Lays out one message row and returns its height.
+-- The height of a line's text as the game reports it, at least one line.
+local function textHeight(w, size)
+    local h = KC.clean(w.body:GetStringHeight())
+    if type(h) ~= "number" or h < size then h = size end
+    return math.floor(h + 0.5)
+end
+
 local function layoutMsg(w, item, width, all)
     local m, s = item.e.m, item.e.s
     local size = fontSize()
@@ -1259,7 +1266,6 @@ local function layoutMsg(w, item, width, all)
     w.time:SetPoint("TOPLEFT", x, -top - 1)
     w.time:SetText((timestamps and not item.cont) and date("%H:%M", m.t) or "")
     local bodyX = x + (timestamps and TIME_W or 0)
-    local bodyLeft
 
     KC.SetFont(w.body, size)
     KC.SetFont(w.pre, size)
@@ -1273,25 +1279,22 @@ local function layoutMsg(w, item, width, all)
         w.pre:SetPoint("TOPLEFT", bodyX, -top)
         w.pre:Show()
         local preW = KC.clean(w.pre:GetStringWidth()) or 0
-        bodyLeft = bodyX + preW + 4
-        w.body:SetPoint("TOPLEFT", bodyLeft, -top)
-        w.body:SetWidth(math.max(40, width - bodyLeft))
+        w.body:SetPoint("TOPLEFT", bodyX + preW + 4, -top)
+        w.body:SetWidth(math.max(40, width - bodyX - preW - 4))
         w.body:SetTextColor(r, g, b)
         pcall(w.body.SetText, w.body, m.x)
     else
         w.pre:Hide()
-        bodyLeft = bodyX
         w.body:SetPoint("TOPLEFT", bodyX, -top)
         w.body:SetWidth(math.max(40, width - bodyX))
         w.body:SetTextColor(rgb(Theme.text))
         w.body:SetText(Feed:Line(m, s, all, item.cont))
     end
-    local h = KC.clean(w.body:GetStringHeight()) or size
-    w.measured = h
-    if type(h) ~= "number" or h < size then h = size end
-    h = math.floor(h + 0.5) + top + 2
+    w.top = top
+    w.measured = textHeight(w, size)
+    local h = w.measured + top + 2
     w:SetHeight(h)
-    return h, bodyLeft
+    return h
 end
 
 function UI:RenderFeed()
@@ -1331,26 +1334,14 @@ function UI:RenderFeed()
     local width = math.max(100, self.frame:GetWidth() - sideWidth() - PAD * 2 - 8)
     self.child:SetWidth(width)
 
-    -- Each line hangs from where the text above it ends, as the game lays it
-    -- out, so two lines can't overlap whatever height the game reports for a
-    -- wrapped one (it can take it for one line). y and h are only estimates,
-    -- for scrolling.
     local y, layout = 0, {}
-    local prev, prevX, gap
     for _, item in ipairs(items) do
         local w = acquire(item.type, self.child)
-        if prev then
-            w:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", prevX, -gap)
-        else
-            w:SetPoint("TOPLEFT", self.child, "TOPLEFT", 0, 0)
-        end
-        prev, prevX, gap = w, 0, 0
+        w:SetPoint("TOPLEFT", self.child, "TOPLEFT", 0, -y)
         w:SetWidth(width)
         local h
         if item.type == "msg" then
-            local bodyLeft
-            h, bodyLeft = layoutMsg(w, item, width, all or mixed) -- tags on lines from several streams
-            prev, prevX, gap = w.body, -bodyLeft, 2
+            h = layoutMsg(w, item, width, all or mixed) -- tags on lines from several streams
         elseif item.type == "fold" then
             w.id = item.id
             w.chev:SetOpen(item.open)
@@ -1361,17 +1352,15 @@ function UI:RenderFeed()
             h = 20
             w:SetHeight(h)
             h = h + 2
-            gap = 2
         else
             w.text:SetText(Feed:DayLabel(item.t):upper())
             h = 24
         end
-        layout[#layout + 1] = { key = itemKey(item), y = y, h = h, w = item.type == "msg" and w or nil }
+        layout[#layout + 1] = { key = itemKey(item), y = y, h = h, frame = w, w = item.type == "msg" and w or nil }
         y = y + h
     end
     self.layout = layout
-    self.lastRow = prev
-    if not self.remeasuring then self:Remeasure() end
+    self:Remeasure()
     self.child:SetHeight(math.max(1, y + 4))
 
     if #items == 0 then
@@ -1400,61 +1389,49 @@ function UI:RenderFeed()
     self:RefreshHeader()
 end
 
--- The game can measure wrapped text before it has really laid it out (right
--- after the window changes size, a pop-up unfolding the chat, and at other
--- moments): a line that wraps is taken for one line and the next one is drawn
--- over it. So the lines on screen are measured again on the next frame and
--- then a few times a second while the chat is open, and the feed is laid out
--- again when one came out different.
-local function measuredWrong(row)
-    local w = row.w
-    return w and w:IsShown() and (KC.clean(w.body:GetStringHeight()) or w.measured) ~= w.measured
-end
-
--- The scroll range from where the last line really ends on screen, not from
--- the estimate: so the newest line is never cut off below the bottom.
-function UI:FitChild()
-    local last = self.lastRow
-    local top = self.child and KC.clean(self.child:GetTop())
-    local bottom = last and last:IsShown() and KC.clean(last:GetBottom())
-    if type(top) ~= "number" or type(bottom) ~= "number" then return end
-    local h = math.max(1, top - bottom + 4)
-    if math.abs(h - (KC.clean(self.child:GetHeight()) or 0)) > 1 then
-        local stick = self.atBottom ~= false
-        self.child:SetHeight(h)
-        if stick then self:ScrollToBottom() end
-    end
-end
-
-function UI:CheckHeights(onScreen)
-    self:FitChild()
-    local top, bottom = -math.huge, math.huge
-    if onScreen then
-        local scrollY = KC.clean(self.scroll:GetVerticalScroll()) or 0
-        local viewH = KC.clean(self.scroll:GetHeight()) or 0
-        if viewH > 0 then top, bottom = scrollY - 40, scrollY + viewH + 40 end
-    end
+-- Right after a line's text is set, the game reports its height as if it
+-- were one line, even when it wraps; a frame later it knows better. So the
+-- heights are read again on the next frame (and, to be safe, every half
+-- second while the chat is open), and the lines are moved to fit. Moved
+-- only: setting the texts again, as a full redraw does, would make every
+-- height wrong once more, and the lines would never settle.
+function UI:Relayout()
+    local size = fontSize()
+    local y, changed = 0, false
     for _, row in ipairs(self.layout or {}) do
-        if row.y + row.h >= top and row.y <= bottom and measuredWrong(row) then
-            self.remeasuring = true
-            self:RenderFeed()
-            self.remeasuring = false
-            return true
+        local w = row.w
+        if w and w:IsShown() then
+            local th = textHeight(w, size)
+            if th ~= w.measured then
+                w.measured = th
+                row.h = th + (w.top or 4) + 2
+                w:SetHeight(row.h)
+                changed = true
+            end
         end
+        if row.y ~= y then
+            row.y = y
+            row.frame:ClearAllPoints()
+            row.frame:SetPoint("TOPLEFT", self.child, "TOPLEFT", 0, -y)
+        end
+        y = y + row.h
     end
-    return false
+    if not changed then return false end
+    self.child:SetHeight(math.max(1, y + 4))
+    if self.atBottom ~= false then self:ScrollToBottom() else self:Scroll(0) end
+    return true
 end
 
 function UI:Remeasure()
     if not self.heightWatch and self.frame then
-        -- runs only while the window is shown; cheap: the dozen lines on screen
+        -- runs only while the window is shown
         local watch = CreateFrame("Frame", nil, self.frame)
         local since = 0
         watch:SetScript("OnUpdate", function(_, elapsed)
             since = since + (elapsed or 0)
-            if since < 0.3 then return end
+            if since < 0.5 then return end
             since = 0
-            if not KC.db.settings.chatCollapsed then UI:CheckHeights(true) end
+            if not KC.db.settings.chatCollapsed then UI:Relayout() end
         end)
         self.heightWatch = watch
     end
@@ -1462,7 +1439,7 @@ function UI:Remeasure()
     self.remeasurePending = true
     C_Timer.After(0, function()
         self.remeasurePending = false
-        self:CheckHeights(false)
+        self:Relayout()
     end)
 end
 

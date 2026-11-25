@@ -248,57 +248,68 @@ for _, t in ipairs(CAPTURE) do if type(t) == "string" and t:find("anyone up for 
 check(found, "feed rendered the guild line")
 check(#ERRORS == 0, "rendering with secret lines raised no errors")
 CAPTURE = nil
--- the game stacks the lines: each hangs from where the text above it ends,
--- so a wrong measurement can't make two lines overlap
-local hung, first, msgRows = 0, 0, 0
-local prevRow
-for _, row in ipairs(KC.UI.layout) do
-    if row.w then
-        msgRows = msgRows + 1
-        for _, p in ipairs(row.w._points or {}) do
-            if p[1] == "TOPLEFT" and p[2] == KC.UI.child then first = first + 1 end
-            if p[1] == "TOPLEFT" and p[3] == "BOTTOMLEFT" and prevRow and prevRow.w and p[2] == prevRow.w.body then hung = hung + 1 end
-        end
-    end
-    prevRow = row
-end
-check(msgRows > 3 and hung >= msgRows - 4 and first <= 1, "a line hangs from where the text above it ends (" .. hung .. " of " .. msgRows .. ")")
--- the scroll range follows where the last line really ends, not the estimate
-rawset(KC.UI.child, "_top", 1000)
-rawset(KC.UI.lastRow, "_bottom", 1000 - 5000)
-KC.UI:CheckHeights(false)
-check(KC.UI.child:GetHeight() == 5004, "the scroll range reaches the real end of the last line: " .. tostring(KC.UI.child:GetHeight()))
-rawset(KC.UI.child, "_top", nil)
-rawset(KC.UI.lastRow, "_bottom", nil)
-KC.UI:RenderFeed()
--- the game measured a wrapped line as one line (the window had just changed
--- size); one frame later it knows better and the feed is laid out again
+-- The game reports a wrapped line as one line right after its text is set,
+-- and the real height a frame later. Then the lines are moved to fit, and
+-- only moved: setting the texts again (a full redraw) would make every height
+-- wrong once more, and the lines would never settle.
 local function rowHeights()
     local hs = {}
     for _, row in ipairs(KC.UI.layout) do if row.w then hs[#hs + 1] = row.h end end
     return hs
 end
-local short = rowHeights()
-STRING_HEIGHT = 28
-Advance(0.01)
-local tall = rowHeights()
-local grew = 0
-for i, h in ipairs(tall) do if short[i] and h > short[i] then grew = grew + 1 end end
-check(#tall == #short and grew > #tall / 2, "lines measured again a frame later: wrapped lines get their full height (" .. grew .. " of " .. #tall .. ", the rest are secret)")
-local renders = 0
+local function stacked()
+    local y = 0
+    for _, row in ipairs(KC.UI.layout) do
+        local f = row.frame or row.w
+        local p = f and f._points and f._points[#f._points]
+        if row.y ~= y or (f and (not p or p[5] ~= -y)) then return false end
+        y = y + row.h
+    end
+    return KC.UI.child:GetHeight() == math.max(1, y + 4)
+end
+local renders, texts = 0, 0
 local orig = KC.UI.RenderFeed
 KC.UI.RenderFeed = function(...) renders = renders + 1; return orig(...) end
+local short = rowHeights()
+STRING_HEIGHT = 28
+CAPTURE = {}
 Advance(0.01)
-check(renders == 0, "and once it fits, no further layouts")
--- and later still: the lines on screen are checked a few times a second
+local tall = rowHeights()
+texts = #CAPTURE
+CAPTURE = nil
+local grew = 0
+for i, h in ipairs(tall) do if short[i] and h > short[i] then grew = grew + 1 end end
+check(#tall == #short and grew > #tall / 2, "a frame later, wrapped lines get their full height (" .. grew .. " of " .. #tall .. ", the rest are secret)")
+check(stacked(), "each line moved to sit right below the one above, and the scroll range is their total")
+check(renders == 0 and texts == 0, "moved only: no redraw, no text set again (that would make the heights wrong again)")
+Advance(0.01)
+check(renders == 0 and rowHeights()[1] == tall[1], "and then it stays put")
+-- and later still: checked every half second while the chat is open
 STRING_HEIGHT = 42
 local watch = KC.UI.heightWatch
-watch._scripts.OnUpdate(watch, 0.1)
-check(renders == 0, "the watch waits a moment between checks")
-watch._scripts.OnUpdate(watch, 0.3)
-check(renders == 1, "a line that changed height later gets its layout redone: " .. renders)
+watch._scripts.OnUpdate(watch, 0.2)
+check(rowHeights()[1] == tall[1], "the watch waits a moment between checks")
 watch._scripts.OnUpdate(watch, 0.4)
-check(renders == 1, "and only once")
+check(rowHeights()[1] > tall[1] and stacked() and renders == 0, "a line whose height changed later is moved to fit, without a redraw")
+-- the game as seen in play: every line wraps to two, but in the frame its text
+-- is set it reports one; a new message (a full redraw) arrives every moment
+STALE_HEIGHTS, STRING_HEIGHT = true, 28
+for i = 1, 6 do
+    KC.UI:RenderFeed()
+    Advance(0.01)
+    watch._scripts.OnUpdate(watch, 0.6)
+end
+local settled = true
+for _, row in ipairs(KC.UI.layout) do
+    -- secret lines can't be measured at all: they keep one line
+    if row.w and not row.w.body._secret and row.h < 28 then settled = false end
+end
+check(settled and stacked(), "with heights wrong in the frame the text is set, every line still ends up at its full height")
+Advance(1) -- redraws still queued from new messages run out first
+local before = renders
+for i = 1, 5 do Advance(0.01); watch._scripts.OnUpdate(watch, 0.6) end
+check(renders == before and stacked(), "and stays there: no endless redraws")
+STALE_HEIGHTS = nil
 KC.UI.RenderFeed = orig
 STRING_HEIGHT = nil
 KC.UI:RenderFeed()

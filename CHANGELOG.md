@@ -1,5 +1,9 @@
 # Krakenchat changelog
 
+## 1.1.7
+
+*   Fixed: long messages could still overlap the next line, and while many lines arrived at once (loot rolls) the chat could lag behind and not scroll all the way down. The fixes in 1.1.3 to 1.1.6 redrew the whole chat whenever a line's height changed, and every redraw made the game report the heights wrong again, so the chat never settled. Now the lines are only moved into place, and they stay there.
+
 ## 1.1.6
 
 *   Fixed: long messages could still overlap the next line. Lines are now stacked by the game itself, directly below where the text above them ends, so they can no longer overlap.
