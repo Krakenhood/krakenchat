@@ -2,7 +2,21 @@
 
 ## 1.1.7
 
-*   Fixed: long messages could still overlap the next line, and while many lines arrived at once (loot rolls) the chat could lag behind and not scroll all the way down. The fixes in 1.1.3 to 1.1.6 redrew the whole chat whenever a line's height changed, and every redraw made the game report the heights wrong again, so the chat never settled. Now the lines are only moved into place, and they stay there.
+*   Fixed: long messages could overlap the next line, and while many lines arrived at once (a loot roll, say) the chat could lag behind and not scroll all the way down.
+
+**What was going on, and what the earlier versions tried**
+
+Krakenchat draws every message as its own line (so each one can be hovered, right-clicked or folded) and places them one below the other by asking the game how tall each line is. Right after a line's text is set, the game answers as if a wrapped message were a single line; a moment later it gives the real height. Where the game said "one line" too early, the next message was drawn over the second half.
+
+*   1.1.3 measured every line once more a moment later and, if a height had changed, redrew the whole chat.
+*   1.1.5 kept checking the heights a few times a second while the chat was open, again redrawing the whole chat on a change.
+*   1.1.6 hung each line below the one above it and took the scroll range from where the last line really ended.
+
+None of this worked, for one shared reason: redrawing the whole chat sets every text again, and that made the game report the heights wrong again. So every check found a "change", redrew, and the chat never settled: lines kept overlapping, and in 1.1.6 the scroll range kept being reset, which is why the bottom crept up slowly and couldn't be reached.
+
+**What 1.1.7 does**
+
+When a height turns out different a moment later, Krakenchat now only moves the lines into place, without setting any text again. The heights it reads then are the real ones, the lines settle after a single frame and stay put. As a safety net it re-reads the heights every half second while the chat is open, again only moving lines. A new test reproduces the game's behaviour and fails on the 1.1.6 code.
 
 ## 1.1.6
 
