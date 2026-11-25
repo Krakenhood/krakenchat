@@ -327,6 +327,112 @@ KC.UI.search:SetText("")
 KC.UI.search._scripts.OnTextChanged(KC.UI.search)
 flush()
 
+section("new messages: only what changed is drawn")
+KrakenChatFrame:Show()
+if KC.db.settings.chatCollapsed then KC.UI:ToggleChat() end
+KC.UI:Select("all")
+flush()
+local function sigs()
+    local t = {}
+    for _, row in ipairs(KC.UI.layout) do t[#t + 1] = row.sig end
+    return table.concat(t, ",")
+end
+-- the update shows exactly what a full redraw would
+local function likeFullRedraw()
+    local a = sigs()
+    KC.UI:RenderFeed()
+    return a == sigs()
+end
+local fulls = 0
+local realRender = KC.UI.RenderFeed
+KC.UI.RenderFeed = function(...) fulls = fulls + 1; return realRender(...) end
+-- which rows are on screen, with their widget and when their text was set
+local function onScreen()
+    local t = {}
+    for _, row in ipairs(KC.UI.layout) do
+        local fs = row.w and row.w.body or row.frame.text
+        t[row.key] = { frame = row.frame, setAt = fs and rawget(fs, "_setAt") }
+    end
+    return t
+end
+local function untouched(before, except)
+    for _, row in ipairs(KC.UI.layout) do
+        local b = before[row.key]
+        if b and row.key ~= except then
+            local fs = row.w and row.w.body or row.frame.text
+            if b.frame ~= row.frame or (fs and rawget(fs, "_setAt") ~= b.setAt) then return false end
+        end
+    end
+    return true
+end
+
+local before = onScreen()
+Advance(1)
+Say("SAY", "a brand new line at the bottom", "Pip", "Player-1-P")
+flush()
+local last = KC.UI.layout[#KC.UI.layout]
+check(fulls == 0 and last.w and last.w.entry.m.x == "a brand new line at the bottom", "a new message: drawn at the bottom, no full redraw")
+check(untouched(before), "the lines already on screen are left alone (same widgets, texts not set again)")
+KC.UI.RenderFeed = realRender
+check(likeFullRedraw(), "and it shows exactly what a full redraw would")
+KC.UI.RenderFeed = function(...) fulls = fulls + 1; return realRender(...) end
+
+before = onScreen()
+local repeatKey = KC.UI.layout[#KC.UI.layout].key
+Advance(1)
+Say("SAY", "a brand new line at the bottom", "Pip", "Player-1-P")
+flush()
+check(fulls == 0 and KC.UI.layout[#KC.UI.layout].key == repeatKey and KC.UI.layout[#KC.UI.layout].w.body:GetText():find("x2"),
+    "the same line again: the line counts up (x2), no new line")
+check(untouched(before, repeatKey), "only that line is drawn again")
+KC.UI.RenderFeed = realRender
+check(likeFullRedraw(), "like a full redraw")
+KC.UI.RenderFeed = function(...) fulls = fulls + 1; return realRender(...) end
+
+Say("LOOT", "You receive loot: [Linen Cloth].")
+Say("LOOT", "You receive loot: [Wool Cloth].")
+flush()
+before = onScreen()
+local foldKey = KC.UI.layout[#KC.UI.layout].key
+Advance(1)
+Say("LOOT", "You receive loot: [Silk Cloth].")
+flush()
+check(fulls == 0 and KC.UI.layout[#KC.UI.layout].key == foldKey and KC.UI.layout[#KC.UI.layout].frame.text:GetText():find("^3 lines"),
+    "a loot line joins the fold at the bottom: " .. tostring(KC.UI.layout[#KC.UI.layout].frame.text:GetText()))
+check(untouched(before, foldKey), "only the fold is drawn again")
+KC.UI.RenderFeed = realRender
+check(likeFullRedraw(), "like a full redraw")
+KC.UI.RenderFeed = function(...) fulls = fulls + 1; return realRender(...) end
+
+-- the oldest line drops off the top (past the limit)
+local first
+for _, row in ipairs(KC.UI.layout) do if row.w then first = row break end end
+local entry = first.w.entry
+for i, m in ipairs(entry.s.msgs) do if m == entry.m then table.remove(entry.s.msgs, i) break end end
+local n = #KC.UI.layout
+KC.UI:UpdateFeed()
+check(fulls == 0 and #KC.UI.layout < n and KC.UI.layout[1].key ~= first.key, "the oldest line drops off the top, no full redraw")
+KC.UI.RenderFeed = realRender
+check(likeFullRedraw(), "like a full redraw")
+KC.UI.RenderFeed = function(...) fulls = fulls + 1; return realRender(...) end
+
+-- reading further up: a new line at the bottom doesn't move what's on screen
+KC.UI.atBottom = false
+KC.UI.scroll:SetVerticalScroll(40)
+Say("SAY", "while you read further up", "Pip", "Player-1-P")
+flush()
+check(fulls == 0 and KC.UI.scroll:GetVerticalScroll() == 40, "scrolled up: what you read stays put")
+KC.UI:ScrollToBottom()
+KC.UI.atBottom = true
+
+-- anything else is drawn in full, as before
+KC.db.settings.fontSize = 14
+KC.UI:UpdateFeed()
+check(fulls == 1, "another text size: a full redraw")
+KC.db.settings.fontSize = 12
+KC.UI.RenderFeed = realRender
+KC.UI:RenderFeed()
+
 section("links")
 KC.UI.OnLinkClick(nil, "addon:KrakenChat:url:https://example.com", "[https://example.com]", "LeftButton")
 check(KrakenChatCopyFrame and KrakenChatCopyFrame:IsShown() and KrakenChatCopyFrame.box:GetText() == "https://example.com", "clicking a URL opens the copy box")

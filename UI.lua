@@ -565,6 +565,20 @@ local function acquire(kind, parent)
     return w
 end
 
+-- Gives one widget back to its pool.
+local function releaseOne(kind, w)
+    local pool = pools[kind]
+    if not pool then return end
+    for i = #pool.used, 1, -1 do
+        if pool.used[i] == w then
+            table.remove(pool.used, i)
+            break
+        end
+    end
+    w:Hide()
+    pool.free[#pool.free + 1] = w
+end
+
 local function release(kinds)
     for _, kind in ipairs(kinds) do
         local pool = pools[kind]
@@ -1244,7 +1258,17 @@ local function itemKey(item)
     return "d" .. date("%Y%m%d", item.t)
 end
 
--- Lays out one message row and returns its height.
+-- What a row shows: when it changes, the row is drawn again.
+local function itemSig(item)
+    if item.type == "msg" then
+        local m = item.e.m
+        return ("m%s|%d|%s|%s"):format(m.id, m.n or 1, item.cont and 1 or 0, item.indent and 1 or 0)
+    elseif item.type == "fold" then
+        return ("f%s|%d|%s|%s"):format(item.id, #item.list, item.open and 1 or 0, item.last)
+    end
+    return "d" .. Feed:DayLabel(item.t)
+end
+
 -- The height of a line's text as the game reports it, at least one line.
 local function textHeight(w, size)
     local h = KC.clean(w.body:GetStringHeight())
@@ -1297,6 +1321,34 @@ local function layoutMsg(w, item, width, all)
     return h
 end
 
+-- Draws one row (sets its texts) and returns its height. `tagged`: lines
+-- from several streams carry their stream's tag.
+local function drawItem(w, item, width, tagged)
+    w:SetWidth(width)
+    if item.type == "msg" then
+        return layoutMsg(w, item, width, tagged)
+    elseif item.type == "fold" then
+        w.id = item.id
+        w.chev:SetOpen(item.open)
+        w.text:SetText(("%d lines: %s"):format(#item.list, Feed:FoldSummary(item)))
+        local a, b = date("%H:%M", item.first), date("%H:%M", item.last)
+        w.span:SetText(a == b and a or (a .. "-" .. b))
+        w:SetHeight(20)
+        return 22
+    end
+    w.text:SetText(Feed:DayLabel(item.t):upper())
+    return 24
+end
+
+local function newRow(item, w, h)
+    return { key = itemKey(item), sig = itemSig(item), kind = item.type, h = h, frame = w, w = item.type == "msg" and w or nil }
+end
+
+-- What the feed was drawn for: when any of it changes, it's drawn anew.
+local function feedContext(view, query, width, tagged)
+    return table.concat({ view, query or "", width, fontSize(), KC.db.settings.timestamps and 1 or 0, tagged and 1 or 0 }, "|")
+end
+
 function UI:RenderFeed()
     if not (self.frame and self.frame:IsShown()) or KC.db.settings.chatCollapsed then
         self.dirty = true
@@ -1334,30 +1386,16 @@ function UI:RenderFeed()
     local width = math.max(100, self.frame:GetWidth() - sideWidth() - PAD * 2 - 8)
     self.child:SetWidth(width)
 
+    local tagged = all or mixed -- tags on lines from several streams
+    self.feedContext = feedContext(view, query, width, tagged)
     local y, layout = 0, {}
     for _, item in ipairs(items) do
         local w = acquire(item.type, self.child)
         w:SetPoint("TOPLEFT", self.child, "TOPLEFT", 0, -y)
-        w:SetWidth(width)
-        local h
-        if item.type == "msg" then
-            h = layoutMsg(w, item, width, all or mixed) -- tags on lines from several streams
-        elseif item.type == "fold" then
-            w.id = item.id
-            w.chev:SetOpen(item.open)
-            local n = #item.list
-            w.text:SetText(("%d lines: %s"):format(n, Feed:FoldSummary(item)))
-            local a, b = date("%H:%M", item.first), date("%H:%M", item.last)
-            w.span:SetText(a == b and a or (a .. "-" .. b))
-            h = 20
-            w:SetHeight(h)
-            h = h + 2
-        else
-            w.text:SetText(Feed:DayLabel(item.t):upper())
-            h = 24
-        end
-        layout[#layout + 1] = { key = itemKey(item), y = y, h = h, frame = w, w = item.type == "msg" and w or nil }
-        y = y + h
+        local row = newRow(item, w, drawItem(w, item, width, tagged))
+        row.y = y
+        layout[#layout + 1] = row
+        y = y + row.h
     end
     self.layout = layout
     self:Remeasure()
@@ -1387,6 +1425,98 @@ function UI:RenderFeed()
         self:Scroll(target or scrollY)
     end
     self:RefreshHeader()
+end
+
+-- A new message, the usual case: the feed as it should be is worked out as
+-- data (cheap), and compared with what's on screen. Lines that are still
+-- there stay as they are; only new ones are drawn (a line at the bottom),
+-- gone ones removed (the oldest, past the limit) and changed ones drawn again
+-- (a fold that grew, a repeat counting up). Setting a line's text is the
+-- costly part, and right after it the game reports a wrapped line's height
+-- wrong for a moment; lines left alone keep their right height. Anything
+-- else (another view, a search, a new width, lines that changed order) gets
+-- the full redraw.
+function UI:UpdateFeed()
+    if not (self.frame and self.frame:IsShown()) or KC.db.settings.chatCollapsed then
+        self.dirty = true
+        return
+    end
+    local old = self.layout
+    if self.dirty or not old or #old == 0 or not self.feedContext then return self:RenderFeed() end
+    local view = KC.db.settings.view
+    local mixed = KC:ViewKeys(view) ~= nil
+    if view ~= "all" and not mixed and not KC:Stream(view) then return self:RenderFeed() end
+    local all = view == "all"
+    local query = (self.query and self.query ~= "") and self.query or nil
+    local width = math.max(100, self.frame:GetWidth() - sideWidth() - PAD * 2 - 8)
+    local tagged = all or mixed
+    if feedContext(view, query, width, tagged) ~= self.feedContext then return self:RenderFeed() end
+
+    local items = Feed:Build(Feed:Collect(view, query), all and not query, self.expanded)
+    if #items == 0 then return self:RenderFeed() end
+
+    -- the rows on screen that are still wanted must keep their order;
+    -- otherwise (lines in between that moved) it's the full redraw
+    local wanted = {}
+    for _, item in ipairs(items) do wanted[itemKey(item)] = true end
+    local oldByKey, keptOld = {}, {}
+    for _, row in ipairs(old) do
+        oldByKey[row.key] = row
+        if wanted[row.key] then keptOld[#keptOld + 1] = row.key end
+    end
+    local i = 0
+    for _, item in ipairs(items) do
+        local key = itemKey(item)
+        if oldByKey[key] then
+            i = i + 1
+            if keptOld[i] ~= key then return self:RenderFeed() end
+        end
+    end
+    if i == 0 then return self:RenderFeed() end
+
+    local stick = self.atBottom ~= false
+    -- the first kept row: the lines on screen stay put relative to it
+    local anchor = oldByKey[keptOld[1]]
+    local anchorY = anchor.y
+    local layout = {}
+    for _, item in ipairs(items) do
+        local key = itemKey(item)
+        local row = oldByKey[key]
+        if row then
+            local sig = itemSig(item)
+            if sig ~= row.sig then
+                row.h, row.sig = drawItem(row.frame, item, width, tagged), sig
+            end
+            oldByKey[key] = nil
+        else
+            local w = acquire(item.type, self.child)
+            row = newRow(item, w, drawItem(w, item, width, tagged))
+        end
+        layout[#layout + 1] = row
+    end
+    for _, row in pairs(oldByKey) do releaseOne(row.kind, row.frame) end
+
+    local y = 0
+    for _, row in ipairs(layout) do
+        if row.y ~= y then
+            row.y = y
+            row.frame:ClearAllPoints()
+            row.frame:SetPoint("TOPLEFT", self.child, "TOPLEFT", 0, -y)
+        end
+        y = y + row.h
+    end
+    self.layout = layout
+    self.child:SetHeight(math.max(1, y + 4))
+    self.empty:Hide()
+    self:Remeasure()
+    if stick then
+        self:ScrollToBottom()
+    else
+        -- reading further up: the lines on screen stay where they are
+        local shift = anchor.y - anchorY
+        if shift ~= 0 then self.scroll:SetVerticalScroll(math.max(0, (KC.clean(self.scroll:GetVerticalScroll()) or 0) + shift)) end
+        self:Scroll(0)
+    end
 end
 
 -- Right after a line's text is set, the game reports its height as if it
@@ -1990,7 +2120,7 @@ function UI:Request(what)
     pending[what] = true
     C_Timer.After(0.1, function()
         pending[what] = nil
-        if what == "feed" then UI:RenderFeed() else UI:RenderSidebar() end
+        if what == "feed" then UI:UpdateFeed() else UI:RenderSidebar() end
     end)
 end
 

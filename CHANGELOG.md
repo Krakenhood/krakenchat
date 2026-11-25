@@ -1,5 +1,11 @@
 # Krakenchat changelog
 
+## 1.2.0
+
+*   Faster and steadier chat: a new message now only adds its own line at the bottom. The lines already on screen are left exactly as they are, instead of all of them being drawn again for every message. When a line changes (a fold that grows, a repeat counting up with x2, x3) only that line is drawn again, and when the oldest line drops off past the limit only that one goes. Switching streams, searching or resizing still draws the chat in full.
+*   This removes the overlapping lines at their root: a line's height is only ever unsure in the moment its text is set, and lines on screen no longer have their text set again.
+*   Much less work in busy chat (Trade, loot rolls, a raid): about one line drawn per message instead of up to 300.
+
 ## 1.1.7
 
 *   Fixed: long messages could overlap the next line, and while many lines arrived at once (a loot roll, say) the chat could lag behind and not scroll all the way down.
